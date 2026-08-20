@@ -94,31 +94,25 @@
             v-else
             class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden"
         >
-          <!-- 上下渐变遮罩 -->
-          <div class="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-medical-50 to-transparent z-10 pointer-events-none"></div>
-          <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-medical-50 to-transparent z-10 pointer-events-none"></div>
-          <div
-              ref="lyricScrollRef"
-              class="h-full overflow-y-auto lyric-scroll py-10"
-          >
-            <div
-                v-if="parsedLyrics.length === 0"
-                class="h-full flex items-center justify-center opacity-50"
-            >
+          <!-- Apple Music 风格聚焦歌词：当前行大字居中，前后行小字淡出（行原地切换，不滚动） -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center">
               <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
             </div>
             <div
-                v-for="(line, i) in parsedLyrics"
                 v-else
+                v-for="(line, i) in activeWindow"
                 :key="line.time"
-                class="leading-8 transition-all duration-300"
-                :class="i === currentLineIndex
-                  ? 'text-medical-900 scale-105 font-bold origin-left'
-                  : 'text-medical-400 scale-100'"
+                class="w-full text-center px-1 transition-all duration-500 leading-relaxed"
+                :class="line._center
+                  ? 'text-base md:text-2xl font-bold text-medical-900'
+                  : line._near
+                    ? 'text-xs md:text-sm text-medical-500 opacity-60'
+                    : 'text-[10px] md:text-xs text-medical-300 opacity-30'"
             >
               <div>{{ line.text }}</div>
-              <div v-if="player.showTranslation && line.trans" class="text-[10px] leading-4 text-accent/80 font-normal">{{ line.trans }}</div>
-              <div v-if="player.showRoman && line.roman" class="text-[10px] leading-4 text-medical-300 italic font-normal">{{ line.roman }}</div>
+              <div v-if="line._center && player.showTranslation && line.trans" class="text-[10px] md:text-sm text-accent font-normal mt-0.5">{{ line.trans }}</div>
+              <div v-if="line._center && player.showRoman && line.roman" class="text-[10px] md:text-xs text-medical-400 italic font-normal mt-0.5">{{ line.roman }}</div>
             </div>
           </div>
         </div>
@@ -345,20 +339,28 @@ watch(() => player.lyricFull, (full) => {
   currentLineIndex.value = -1;
 }, { deep: true });
 
-// === 歌词样式切换（compact=左下角 | full=封面左移+右侧滚动） ===
-const lyricScrollRef = ref(null);
-const LYRIC_LINE_H = 32; // 滚动歌词每行固定高度 px（leading-8）
-
+// === 歌词样式切换（compact=左下角 | full=封面左移+Apple Music 风格聚焦） ===
 const toggleLyricStyle = () => {
   player.lyricStyle = player.lyricStyle === 'compact' ? 'full' : 'compact';
 };
 
-// full 样式：当前行滚动居中
-watch(currentLineIndex, (idx) => {
-  const el = lyricScrollRef.value;
-  if (!el || idx < 0) return;
-  const target = idx * LYRIC_LINE_H - el.clientHeight / 2 + LYRIC_LINE_H / 2;
-  el.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+// full 样式：当前行前后各 2 行（当前行固定居中，行原地切换）
+const activeWindow = computed(() => {
+  const all = parsedLyrics.value;
+  if (all.length === 0) return [];
+  const idx = currentLineIndex.value;
+  const N = 2;
+  if (idx < 0) {
+    // 未开始播放：显示开头几行
+    return all.slice(0, N * 2 + 1).map((l, i) => ({ ...l, _center: i === 0, _near: i === 1 }));
+  }
+  const start = Math.max(0, idx - N);
+  const end = Math.min(all.length, idx + N + 1);
+  return all.slice(start, end).map((l, i) => ({
+    ...l,
+    _center: start + i === idx,
+    _near: Math.abs(start + i - idx) === 1
+  }));
 });
 
 // 歌词容器定位：compact 左下角 / full 封面右侧（移动端底部全宽）

@@ -1,0 +1,62 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+/1.py
+/cookie.txt
+/GEMINI.md
+/.gemini/.env
+/scripts/publish-image.ps1
+
+### Node / 前端构建 ###
+node_modules/
+music-party-web/node_modules/
+music-party-web/dist/
+
+### 前端产物拷贝（部署时由 dist 生成） ###
+src/main/resources/static/
+
+### 日志 ###
+*.log
+app-err.log
+app-out.log
+nohup.out
+
+### 本地数据与缓存 ###
+db/
+cached_media/
+launcher/
+
+### 环境变量（保留 .env.example 模板） ###
+.env
+.env.local
+.env.*.local

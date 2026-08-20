@@ -1,0 +1,96 @@
+services:
+  # 1. 网易云音乐 API 服务
+  netease-api:
+    image: moefurina/ncm-api:latest
+    container_name: music-party-netease
+    restart: always
+    environment:
+      - PORT=3000
+      - HTTPS=true
+    ports:
+      - "3000:3000"
+    networks:
+      - music-net
+
+  # 2. QQ音乐 API 服务（可选）
+  qq-api:
+    image: sansenjian/qq-music-api:latest
+    container_name: music-party-qq
+    restart: always
+    environment:
+      - PORT=3200
+    networks:
+      - music-net
+    profiles:
+      - qq
+
+  # 3. Music Party 主应用
+  music-party:
+    image: thornex/music-party:latest
+    container_name: music-party-app
+    restart: always
+    ports:
+      - "8848:8080"
+    environment:
+      # [数据库配置] - PostgreSQL 独立部署
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-musicparty}
+      - DB_USER=${DB_USER:-musicparty}
+      - DB_PASSWORD=${DB_PASSWORD:-musicparty}
+
+      # [统一认证中心] - 自研统一登录平台 (C:\Project\Auth)
+      # 必须与认证中心配置相同的 JWT_SECRET（共享密钥，用于本地验签）
+      - AUTH_CENTER_URL=${AUTH_CENTER_URL:-http://localhost:8000}
+      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-string}
+
+      # [基础配置]
+      - BASE_URL=${BASE_URL:-http://localhost:8848}
+      - APP_AUTHOR_NAME=${APP_AUTHOR_NAME:-ThorNex}
+      - APP_BACK_WORDS=${APP_BACK_WORDS:-MUSIC PARTY}
+
+      # [音乐源 API 地址]
+      - NETEASE_API_URL=${NETEASE_API_URL:-http://netease-api:3000}
+      - QQ_API_URL=${QQ_API_URL:-http://qq-api:3200}
+
+      # [音源开关]
+      - NETEASE_ENABLED=${NETEASE_ENABLED:-true}
+      - QQ_ENABLED=${QQ_ENABLED:-true}
+      - KUGOU_ENABLED=${KUGOU_ENABLED:-true}
+      - BILIBILI_ENABLED=${BILIBILI_ENABLED:-true}
+
+      # [平台凭证]
+      - NETEASE_COOKIE=${NETEASE_COOKIE:-}
+      - NETEASE_QUALITY=${NETEASE_QUALITY:-exhigh}
+      - QQ_COOKIE=${QQ_COOKIE:-}
+      - QQ_QUALITY=${QQ_QUALITY:-320}
+      - KUGOU_COOKIE=${KUGOU_COOKIE:-}
+      - BILIBILI_SESSDATA=${BILIBILI_SESSDATA:-}
+
+      # [性能/策略配置]
+      - QUEUE_MAX_SIZE=${QUEUE_MAX_SIZE:-1000}
+      - QUEUE_HISTORY_SIZE=${QUEUE_HISTORY_SIZE:-50}
+      - QUEUE_MAX_USER_SONGS=${QUEUE_MAX_USER_SONGS:-100}
+      - PLAYLIST_IMPORT_LIMIT=${PLAYLIST_IMPORT_LIMIT:-100}
+      - CHAT_HISTORY_LIMIT=${CHAT_HISTORY_LIMIT:-1000}
+      - CHAT_MIN_INTERVAL=${CHAT_MIN_INTERVAL:-1000}
+      - CHAT_MAX_LENGTH=${CHAT_MAX_LENGTH:-200}
+      - CACHE_MAX_SIZE=${CACHE_MAX_SIZE:-1GB}
+
+      # [防滥用配置]
+      - AUTH_RATE_LIMIT_ENABLED=${AUTH_RATE_LIMIT_ENABLED:-true}
+      - AUTH_MAX_ATTEMPTS=${AUTH_MAX_ATTEMPTS:-5}
+      - AUTH_WINDOW_SECONDS=${AUTH_WINDOW_SECONDS:-60}
+      - AUTH_BLOCK_DURATION=${AUTH_BLOCK_DURATION:-300}
+
+    depends_on:
+      - netease-api
+    networks:
+      - music-net
+    volumes:
+      - ./music_party/cached_media:/app/cached_media
+      - ./music_party/data:/app/data
+
+networks:
+  music-net:
+    driver: bridge

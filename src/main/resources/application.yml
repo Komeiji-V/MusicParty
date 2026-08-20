@@ -1,0 +1,82 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:musicparty}
+    username: ${DB_USER:musicparty}
+    password: ${DB_PASSWORD:musicparty}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+
+logging:
+  level:
+    root: INFO
+    org.thornex.musicparty: DEBUG
+
+app:
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    from: ${MAIL_FROM:}
+  auth-center:
+    url: ${AUTH_CENTER_URL:http://localhost:8000}
+  jwt:
+    secret: ${JWT_SECRET:musicparty-jwt-secret-change-in-production}
+    expiration-ms: ${JWT_EXPIRATION:604800000}
+  super-admin:
+    username: ${SUPER_ADMIN_USERNAME:}
+    password: ${SUPER_ADMIN_PASSWORD:}
+  music-api:
+    admin-password: ${ADMIN_PASSWORD:admin123}
+    base-url: ${BASE_URL:http://localhost:8080}
+    author-name: ${APP_AUTHOR_NAME:ThorNex}
+    back-words: ${APP_BACK_WORDS:THORNEX}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+    netease:
+      base-url: ${NETEASE_API_URL:http://netease-api:3000}
+      cookie: ${NETEASE_COOKIE:}
+      quality: ${NETEASE_QUALITY:exhigh}
+      enabled: ${NETEASE_ENABLED:true}
+    qq:
+      base-url: ${QQ_API_URL:http://localhost:3200}
+      cookie: ${QQ_COOKIE:}
+      quality: ${QQ_QUALITY:320}
+      enabled: ${QQ_ENABLED:true}
+    kugou:
+      cookie: ${KUGOU_COOKIE:}
+      enabled: ${KUGOU_ENABLED:true}
+    bilibili:
+      base-url: "https://api.bilibili.com"
+      sessdata: ${BILIBILI_SESSDATA:}
+      enabled: ${BILIBILI_ENABLED:true}
+    queue:
+      max-size: ${QUEUE_MAX_SIZE:1000}
+      history-size: ${QUEUE_HISTORY_SIZE:50}
+      max-user-songs: ${QUEUE_MAX_USER_SONGS:100}
+    player:
+      max-playlist-import-size: ${PLAYLIST_IMPORT_LIMIT:100}
+    chat:
+      max-history-size: ${CHAT_HISTORY_LIMIT:1000}
+      min-interval-ms: ${CHAT_MIN_INTERVAL:1000}
+      max-message-length: ${CHAT_MAX_LENGTH:200}
+    cache:
+      max-size: ${CACHE_MAX_SIZE:1GB}
+    auth:
+      rate-limit:
+        enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
+        max-attempts: ${AUTH_MAX_ATTEMPTS:5}
+        window-seconds: ${AUTH_WINDOW_SECONDS:60}
+        block-duration-seconds: ${AUTH_BLOCK_DURATION:300}

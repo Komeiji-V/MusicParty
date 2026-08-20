@@ -2,12 +2,12 @@
   <div class="relative">
     <button
       @click="toggleOpen"
-      class="flex items-center gap-1.5 h-9 px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-900 text-sm font-bold transition-colors rounded-sm"
+      class="flex items-center gap-1.5 h-9 px-2 md:px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-900 text-sm font-bold transition-colors rounded-sm"
     >
       <!-- 基线对齐：CH: 与频道名（不同字号）保持文字基线一致 -->
       <span class="flex items-baseline gap-1.5 min-w-0">
         <span class="text-xs font-mono text-medical-400">CH:</span>
-        <span class="truncate max-w-[120px]">{{ currentLabel }}</span>
+        <span class="truncate max-w-10 md:max-w-[120px]">{{ currentLabel }}</span>
       </span>
       <ChevronDown class="w-3.5 h-3.5 text-medical-400 flex-shrink-0" :class="{ 'rotate-180': isOpen }" />
     </button>

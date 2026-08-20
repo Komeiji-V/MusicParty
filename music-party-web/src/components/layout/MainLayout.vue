@@ -1,7 +1,7 @@
 <!-- src/components/layout/MainLayout.vue -->
 <script setup>
 import { ref, onMounted } from 'vue';
-import { Search, Users, ListMusic, X, Minimize2, Maximize2, Volume2, Activity, UserRound } from 'lucide-vue-next';
+import { Search, Users, ListMusic, X, Minimize2, Maximize2, Volume2, Activity, UserRound, MoreHorizontal } from 'lucide-vue-next';
 import UserList from '../UserList.vue';
 import QueueList from '../QueueList.vue';
 import CoverImage from '../CoverImage.vue';
@@ -32,6 +32,8 @@ const openProfile = () => {
 
 const mobileQueueOpen = ref(false);
 const mobileUserOpen = ref(false);
+// 移动端"更多"菜单（个人空间/歌单/精简模式折叠）
+const mobileMoreOpen = ref(false);
 
 const toggleMobileQueue = () => {
   mobileQueueOpen.value = !mobileQueueOpen.value;
@@ -42,6 +44,11 @@ const toggleMobileUser = () => {
   mobileUserOpen.value = !mobileUserOpen.value;
   if(mobileUserOpen.value) mobileQueueOpen.value = false;
 };
+
+// 更多菜单项：执行后关闭菜单
+const moreProfile = () => { mobileMoreOpen.value = false; openProfile(); };
+const morePlaylists = () => { mobileMoreOpen.value = false; emit('playlists'); };
+const moreLite = () => { mobileMoreOpen.value = false; uiStore.toggleLiteMode(); };
 
 const handleSearchClick = () => {
   emit('search');
@@ -62,18 +69,18 @@ const handleSearchClick = () => {
           >
             {{ uiStore.siteTitle }}
           </button>
-          <span class="text-medical-300 font-mono font-normal text-xs md:text-xs whitespace-nowrap">by {{ uiStore.authorName }}</span>
+          <span class="hidden md:inline text-medical-300 font-mono font-normal text-xs whitespace-nowrap">by {{ uiStore.authorName }}</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 md:gap-4">
+      <div class="flex items-center gap-1.5 md:gap-4">
         <ChannelSwitcher @admin-panel="showAdminPanel = true" />
 
-        <!-- 个人空间 -->
+        <!-- 个人空间（桌面端显示；移动端收进"更多"菜单） -->
         <button
             @click="openProfile"
             title="个人空间"
-            class="flex items-center justify-center gap-2 w-9 h-9 md:w-auto md:h-9 md:px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 hover:text-accent transition-all rounded-sm"
+            class="hidden md:flex items-center justify-center gap-2 w-9 h-9 md:w-auto md:h-9 md:px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 hover:text-accent transition-all rounded-sm"
         >
           <UserRound class="w-4 h-4" />
           <span class="hidden lg:inline text-xs font-bold">账户</span>
@@ -83,7 +90,7 @@ const handleSearchClick = () => {
         <button
             @click="emit('playlists')"
             title="我的歌单"
-            class="flex items-center justify-center gap-2 w-9 h-9 md:w-auto md:h-9 md:px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 hover:text-accent transition-all rounded-sm"
+            class="hidden md:flex items-center justify-center gap-2 w-9 h-9 md:w-auto md:h-9 md:px-3 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 hover:text-accent transition-all rounded-sm"
         >
           <ListMusic class="w-4 h-4" />
           <span class="hidden lg:inline text-xs font-bold">歌单</span>
@@ -104,10 +111,38 @@ const handleSearchClick = () => {
           <Users class="w-5 h-5 relative z-10" />
         </button>
 
-        <!-- 精简模式按钮 -->
+        <!-- 移动端：更多菜单（个人空间/歌单/精简模式 折叠） -->
+        <div class="relative md:hidden">
+          <button
+              @click="mobileMoreOpen = !mobileMoreOpen"
+              title="更多"
+              class="flex items-center justify-center w-9 h-9 bg-medical-50 border border-medical-200 text-medical-600 hover:text-medical-900 transition-colors rounded-sm"
+              :class="{ 'bg-medical-200 text-medical-900 border-medical-300': mobileMoreOpen }"
+          >
+            <MoreHorizontal class="w-5 h-5" />
+          </button>
+          <div
+              v-if="mobileMoreOpen"
+              class="absolute right-0 top-full mt-1 w-44 bg-white border border-medical-200 shadow-xl z-50 rounded-sm overflow-hidden"
+          >
+            <button @click="moreProfile" class="w-full flex items-center gap-2.5 px-3 py-3 text-xs font-bold text-medical-800 hover:bg-medical-50 text-left transition-colors">
+              <UserRound class="w-4 h-4 text-medical-500 flex-shrink-0" /> 个人空间
+            </button>
+            <button @click="morePlaylists" class="w-full flex items-center gap-2.5 px-3 py-3 text-xs font-bold text-medical-800 hover:bg-medical-50 text-left transition-colors border-t border-medical-100">
+              <ListMusic class="w-4 h-4 text-medical-500 flex-shrink-0" /> 我的歌单
+            </button>
+            <button @click="moreLite" class="w-full flex items-center gap-2.5 px-3 py-3 text-xs font-bold text-medical-800 hover:bg-medical-50 text-left transition-colors border-t border-medical-100">
+              <Minimize2 class="w-4 h-4 text-medical-500 flex-shrink-0" /> 精简模式
+            </button>
+          </div>
+        </div>
+        <!-- 点击菜单外部关闭 -->
+        <div v-if="mobileMoreOpen" class="fixed inset-0 z-40 md:hidden" @click="mobileMoreOpen = false"></div>
+
+        <!-- 精简模式按钮（桌面端保留原位） -->
         <button
             @click="uiStore.toggleLiteMode"
-            class="flex items-center justify-center w-9 h-9 md:w-10 md:h-9 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 transition-all rounded-sm"
+            class="hidden md:flex items-center justify-center w-9 h-9 md:w-10 md:h-9 border border-medical-200 bg-medical-50 hover:bg-medical-100 text-medical-600 transition-all rounded-sm"
             title="精简模式"
         >
           <Minimize2 class="w-4 h-4" />

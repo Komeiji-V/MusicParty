@@ -1,5 +1,10 @@
 server:
   port: ${SERVER_PORT:8080}
+  # P0-1 生产必需：识别反向代理的 X-Forwarded-Proto/For/Host，
+  # 否则 HTTPS 反代下 request.isSecure() 恒 false（SSO cookie 不带 Secure）、
+  # 所有 IP 限流退化为反代单 IP（全站共享一个桶）。
+  # 前提：反代必须覆写 X-Forwarded-For（勿追加客户端值），且后端 8080 不得直连公网。
+  forward-headers-strategy: framework
 
 
 spring:

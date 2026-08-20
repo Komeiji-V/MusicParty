@@ -332,6 +332,8 @@ public class SystemConfigService {
     }
 
     private boolean isSupportedCleanupTarget(String name) {
-        return "chat".equals(name) || "history".equals(name) || "queue".equals(name) || "cache".equals(name);
+        // rejected_cookies：清理超期已驳回的 Cookie 提交（P1-1，管理员显式开启）
+        return "chat".equals(name) || "history".equals(name) || "queue".equals(name) || "cache".equals(name)
+                || "rejected_cookies".equals(name);
     }
 }

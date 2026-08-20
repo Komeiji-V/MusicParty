@@ -501,20 +501,25 @@ public class ChannelService {
 
     private void checkChannelAdmin(Long channelId, Long userId) {
         if (!isChannelAdmin(channelId, userId)) {
-            throw new RuntimeException("权限不足：需要频道管理员或超级管理员权限");
+            // 越权必须返回 403（此前抛 RuntimeException 导致 500）
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "权限不足：需要频道管理员或超级管理员权限");
         }
     }
 
     private void checkChannelAdminOrSuperAdmin(Long channelId, Long userId) {
         if (!isChannelAdmin(channelId, userId)) {
-            throw new RuntimeException("权限不足：需要频道管理员或超级管理员权限");
+            // 越权必须返回 403（此前抛 RuntimeException 导致 500）
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "权限不足：需要频道管理员或超级管理员权限");
         }
     }
 
     /** 仅总管理员（认证中心 admin 角色）可执行的操作 */
     private void checkSuperAdmin(Long userId) {
         if (!"SUPER_ADMIN".equals(SecurityConfig.getCurrentUserRole())) {
-            throw new RuntimeException("权限不足：仅总管理员可执行此操作");
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "权限不足：仅总管理员可执行此操作");
         }
     }
 }

@@ -31,7 +31,8 @@ public class CookieSubmission {
     @Column(nullable = false, length = 20)
     private String platform;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    // 允许 NULL：审核完成（通过/驳回）后凭证置空，仅保留审计行（谁/何时/哪个平台）
+    @Column(columnDefinition = "TEXT")
     private String cookie;
 
     @Enumerated(EnumType.STRING)

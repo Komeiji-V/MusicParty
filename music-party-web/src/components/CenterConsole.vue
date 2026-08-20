@@ -249,21 +249,24 @@
                   ? (slot._center ? 'h-auto py-0.5' : 'h-10 md:h-11')
                   : 'h-10 md:h-11'"
             >
-              <div
-                  v-if="slot"
-                  :key="slot.time"
-                  class="lyric-line w-full text-left px-1 leading-snug break-words transition-all duration-500"
-                  :class="slot._center
-                    ? 'text-2xl md:text-[30px] font-black text-medical-900'
-                    : slot._near
-                      ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
-                      : 'text-xs md:text-sm text-medical-400 opacity-40'"
-              >
-                <!-- 罗马音在歌词上方（黑色） -->
-                <div v-if="slot._center && player.showRoman && slot.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-0.5">{{ slot.roman }}</div>
-                <div>{{ slot.text }}</div>
-                <div v-if="slot._center && player.showTranslation && slot.trans" class="text-sm md:text-lg text-accent font-medium mt-0.5">{{ slot.trans }}</div>
-              </div>
+              <!-- 交叉淡入淡出：旧文字上滑淡出 + 新文字下滑淡入同时进行，无空白闪烁 -->
+              <Transition name="lyric-swap">
+                <div
+                    v-if="slot"
+                    :key="slot.time"
+                    class="w-full text-left px-1 leading-snug break-words transition-all duration-500"
+                    :class="slot._center
+                      ? 'text-2xl md:text-[30px] font-black text-medical-900'
+                      : slot._near
+                        ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
+                        : 'text-xs md:text-sm text-medical-400 opacity-40'"
+                >
+                  <!-- 罗马音在歌词上方（黑色） -->
+                  <div v-if="slot._center && player.showRoman && slot.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-0.5">{{ slot.roman }}</div>
+                  <div>{{ slot.text }}</div>
+                  <div v-if="slot._center && player.showTranslation && slot.trans" class="text-sm md:text-lg text-accent font-medium mt-0.5">{{ slot.trans }}</div>
+                </div>
+              </Transition>
             </div>
           </div>
         </div>
@@ -561,12 +564,17 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* 歌词行淡入：内容替换时（key 变化重建）重播动画，平滑切换 */
-.lyric-line {
-  animation: lyric-in 0.45s ease-out;
+/* 歌词行交叉切换：旧文字上滑淡出 + 新文字下滑淡入同时进行（无空白闪烁） */
+.lyric-swap-enter-active,
+.lyric-swap-leave-active {
+  transition: opacity 0.32s ease, transform 0.32s ease;
 }
-@keyframes lyric-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+.lyric-swap-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.lyric-swap-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

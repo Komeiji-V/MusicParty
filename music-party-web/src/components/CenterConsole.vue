@@ -3,7 +3,7 @@
   <!-- full 样式：整体 justify-start 让封面左移，为右侧歌词让位 -->
   <div
       class="relative w-full h-full flex items-center overflow-hidden transition-all duration-500"
-      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[25%]' : 'justify-center'"
+      :class="player.lyricStyle === 'full' ? 'justify-center' : 'justify-center'"
   >
 
     <!-- LAYER 0: 静态背景层 (最底层) -->
@@ -87,7 +87,11 @@
     </div>
 
     <!-- LAYER 3: 核心实体层 (封面)；左移由根 flex 控制 -->
-    <div class="relative z-30 flex items-center justify-center pointer-events-auto flex-shrink-0">
+    <div
+        class="z-30 flex items-center justify-center pointer-events-auto flex-shrink-0"
+        :class="player.lyricStyle === 'full' ? 'fixed top-1/2 -translate-y-1/2' : 'relative'"
+        :style="player.lyricStyle === 'full' ? { left: 'calc(50vw - 304px)' } : {}"
+    >
       <div class="relative">
         <div v-if="player.nowPlaying?.enqueuedById" class="absolute -top-4 right-0 text-xs font-mono text-accent flex items-center gap-2 z-20 select-none">
           <span>REQ_BY</span>
@@ -195,12 +199,14 @@
           </div>
         </div>
       </div>
+      </div>
 
       <!-- full 歌词区：与封面同排（间距固定 ml，缩放不变）、贴紧封面右侧 -->
       <div
           v-if="player.lyricStyle === 'full' && !lyricHidden"
           ref="lyricAreaRef"
-          class="relative z-30 flex flex-col ml-4 md:ml-8 w-[55vw] md:w-[520px] flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden"
+          class="z-30 flex flex-col w-[min(520px,38vw)] flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden fixed top-1/2 -translate-y-1/2"
+          :style="{ left: 'calc(50vw + 16px)' }"
       >
         <!-- 标题行：LYRIC_SYSTEM + 翻译/罗马音开关 + 收起按钮 -->
         <div class="pointer-events-auto flex items-center gap-2 mb-1 flex-shrink-0">
@@ -245,7 +251,8 @@
             >
               <div
                   v-if="slot"
-                  class="w-full text-left px-1 leading-snug break-words transition-all duration-500"
+                  :key="slot.time"
+                  class="lyric-line w-full text-left px-1 leading-snug break-words transition-all duration-500"
                   :class="slot._center
                     ? 'text-2xl md:text-[30px] font-black text-medical-900'
                     : slot._near
@@ -262,7 +269,6 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>
@@ -388,8 +394,9 @@ const slotLines = computed(() => {
   return slots;
 });
 
-// 窗口过窄（<420px）：整个歌词区（含 compact）自动隐藏，避免小屏放不下
-const lyricHidden = computed(() => width.value < 420);
+// 歌词框宽 = min(520px, 38vw)：随窗口缩放；<200px（约窗口 <530px，含移动端）时
+// 整个歌词区（含 compact）自动隐藏，避免放不下
+const lyricHidden = computed(() => Math.min(520, width.value * 0.38) < 200);
 
 // 超宽检测：歌词区容器过窄（放不下大字歌词）时自动回退默认样式且禁止切换；
 // 长歌词行已支持换行（break-words），正常宽度容器不受影响
@@ -549,5 +556,16 @@ onUnmounted(() => {
 .lyric-scroll {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+}
+</style>
+
+<style scoped>
+/* 歌词行淡入：内容替换时（key 变化重建）重播动画，平滑切换 */
+.lyric-line {
+  animation: lyric-in 0.45s ease-out;
+}
+@keyframes lyric-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

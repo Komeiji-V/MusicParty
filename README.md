@@ -37,21 +37,38 @@
 - **越权防护**：频道/歌单/Cookie 池所有管理操作 403；队列置顶仅本人或管理员
 - 依赖保持 **Spring Boot 3.5.x** 最新维护分支（覆盖 Spring Framework / Tomcat / pgjdbc 系列已知 CVE）
 
-## 🚀 快速开始（开发环境）
+## 🚀 快速开始
 
-前置：JDK 21、Node 18+、Docker（音源容器）、PostgreSQL 15+、认证中心（auth-center）。
+### 方式一：Docker 部署（推荐，一条命令跑起整个主程序）
+
+前端已包含在镜像内（构建时自动打包进后端静态资源，由后端托管），**不需要单独启动前端**。
 
 ```bash
-# 1. 启动音源容器（网易云/QQ API；PostgreSQL 需自行部署或复用已有实例）
-docker compose up -d
+# 1. 构建镜像（多阶段自动完成：前端 npm build + 后端 maven package）
+docker build -t music-party:prod .
 
-# 2. 配置环境变量（JWT_SECRET 必须与认证中心完全一致）
-cp .env.example .env        # 修改 JWT_SECRET / DB_* / NETEASE_API_URL
+# 2. 运行（环境变量按需注入；PostgreSQL / 认证中心 / 音源容器需先就绪）
+docker run -d --name music-party -p 8848:8080 \
+  -e DB_HOST=<pg地址> -e DB_PORT=5432 -e DB_NAME=musicparty \
+  -e DB_USER=musicparty -e DB_PASSWORD=<口令> \
+  -e JWT_SECRET=<与认证中心完全一致> \
+  -e AUTH_CENTER_URL=<认证中心地址> \
+  -e NETEASE_API_URL=http://netease-api:3000 \
+  -v music_media:/app/cached_media \
+  music-party:prod
+```
 
-# 3. 启动后端（默认 :8080）
+打开 `http://localhost:8848` 即可访问（页面由后端直接托管，无单独前端服务）。
+
+### 方式二：开发模式（改代码热更新用，可选）
+
+需要 JDK 21 + Node 18+：
+
+```bash
+# 后端（默认 :8080）
 JAVA_HOME=<jdk21路径> ./mvnw -DskipTests spring-boot:run
 
-# 4. 前端（开发模式 :5173；或 npm run build 后由后端托管静态资源）
+# 前端（:5173 热更新，开发调试用；生产/容器化不需要）
 cd music-party-web && npm install && npm run dev
 ```
 

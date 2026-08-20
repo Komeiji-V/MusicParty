@@ -3,7 +3,7 @@
   <!-- full 样式：整体 justify-start 让封面左移，为右侧歌词让位 -->
   <div
       class="relative w-full h-full flex items-center overflow-hidden transition-all duration-500"
-      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[12%]' : 'justify-center'"
+      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[15%]' : 'justify-center'"
   >
 
     <!-- LAYER 0: 静态背景层 (最底层) -->
@@ -59,7 +59,11 @@
           <!-- 样式切换 -->
           <button
               @click="toggleLyricStyle"
-              :title="player.lyricStyle === 'compact' ? '展开歌词（封面左移+滚动）' : '收起歌词（原样式）'"
+              :disabled="player.lyricStyle === 'compact' && lyricFullDisabled"
+              :title="player.lyricStyle === 'compact'
+                ? (lyricFullDisabled ? '歌词过长，无法展开歌词模式' : '展开歌词（封面左移+聚焦歌词）')
+                : '收起歌词（原样式）'"
+              :class="{ 'opacity-40 cursor-not-allowed': player.lyricStyle === 'compact' && lyricFullDisabled }"
               class="ml-auto flex items-center justify-center w-6 h-6 text-medical-400 hover:text-accent transition-colors border border-medical-200 hover:border-accent rounded-sm bg-white/60 backdrop-blur-sm"
           >
             <Maximize2 v-if="player.lyricStyle === 'compact'" class="w-3.5 h-3.5" />
@@ -92,27 +96,29 @@
         <!-- full：封面右侧滚动歌词（当前行居中高亮 + 上下渐变） -->
         <div
             v-else
-            class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden"
+            ref="lyricAreaRef"
+            class="pointer-events-auto relative overflow-hidden h-[224px] md:h-[280px]"
         >
-          <!-- Apple Music 风格聚焦歌词：当前行大字居中，前后行小字淡出（行原地切换，不滚动） -->
-          <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center">
+          <!-- Apple Music 风格聚焦歌词：当前行大字靠左、前后行小字淡出（行原地切换，不滚动，高度不超过封面） -->
+          <div class="absolute inset-0 flex flex-col justify-center items-start gap-2 md:gap-3">
+            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center w-full">
               <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
             </div>
             <div
                 v-else
                 v-for="(line, i) in activeWindow"
                 :key="line.time"
-                class="w-full text-center px-1 transition-all duration-500 leading-relaxed"
+                class="w-full text-left px-1 transition-all duration-500 leading-snug break-words"
                 :class="line._center
-                  ? 'text-base md:text-2xl font-bold text-medical-900'
+                  ? 'text-2xl md:text-[30px] font-black text-medical-900'
                   : line._near
-                    ? 'text-xs md:text-sm text-medical-500 opacity-60'
-                    : 'text-[10px] md:text-xs text-medical-300 opacity-30'"
+                    ? 'text-sm md:text-base font-bold text-medical-500 opacity-60'
+                    : 'text-xs md:text-sm text-medical-300 opacity-30'"
             >
+              <!-- 罗马音在歌词上方（Apple Music 日文风格） -->
+              <div v-if="line._center && player.showRoman && line.roman" class="text-xs md:text-sm text-medical-400 italic mb-1">{{ line.roman }}</div>
               <div>{{ line.text }}</div>
-              <div v-if="line._center && player.showTranslation && line.trans" class="text-[10px] md:text-sm text-accent font-normal mt-0.5">{{ line.trans }}</div>
-              <div v-if="line._center && player.showRoman && line.roman" class="text-[10px] md:text-xs text-medical-400 italic font-normal mt-0.5">{{ line.roman }}</div>
+              <div v-if="line._center && player.showTranslation && line.trans" class="text-xs md:text-sm text-accent mt-1">{{ line.trans }}</div>
             </div>
           </div>
         </div>
@@ -240,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useUserStore } from '../stores/user';
 import {useEventListener, useWindowSize} from '@vueuse/core';
@@ -341,17 +347,17 @@ watch(() => player.lyricFull, (full) => {
 
 // === 歌词样式切换（compact=左下角 | full=封面左移+Apple Music 风格聚焦） ===
 const toggleLyricStyle = () => {
+  if (player.lyricStyle === 'compact' && lyricFullDisabled.value) return; // 超宽不可展开
   player.lyricStyle = player.lyricStyle === 'compact' ? 'full' : 'compact';
 };
 
-// full 样式：当前行前后各 2 行（当前行固定居中，行原地切换）
+// full 样式：当前行前后各 4 行（行原地切换，不滚动；总高不超过封面）
 const activeWindow = computed(() => {
   const all = parsedLyrics.value;
   if (all.length === 0) return [];
   const idx = currentLineIndex.value;
-  const N = 2;
+  const N = 4;
   if (idx < 0) {
-    // 未开始播放：显示开头几行
     return all.slice(0, N * 2 + 1).map((l, i) => ({ ...l, _center: i === 0, _near: i === 1 }));
   }
   const start = Math.max(0, idx - N);
@@ -363,10 +369,28 @@ const activeWindow = computed(() => {
   }));
 });
 
-// 歌词容器定位：compact 左下角 / full 封面右侧（移动端底部全宽）
+// 超宽检测：歌词区容器过窄（放不下大字歌词）时自动回退默认样式且禁止切换；
+// 长歌词行已支持换行（break-words），正常宽度容器不受影响
+const lyricAreaRef = ref(null);
+const lyricFullDisabled = ref(false);
+const measureLyricFit = () => {
+  const area = lyricAreaRef.value;
+  if (!area) return;
+  const fits = area.clientWidth >= 200;
+  if (!fits && !lyricFullDisabled.value) {
+    lyricFullDisabled.value = true;
+    if (player.lyricStyle === 'full') player.lyricStyle = 'compact';
+  } else if (fits) {
+    lyricFullDisabled.value = false;
+  }
+};
+watch(() => player.lyricStyle, () => { nextTick(measureLyricFit); });
+onMounted(() => { nextTick(measureLyricFit); });
+
+// 歌词容器定位：full 时贴近封面右侧靠左（高度不超过封面）
 const lyricWrapClass = computed(() => {
   if (player.lyricStyle === 'full') {
-    return 'inset-x-0 bottom-7 flex flex-col h-56 pb-2 md:inset-auto md:top-1/2 md:-translate-y-1/2 md:left-[38%] md:right-6 md:h-[58vh]';
+    return 'inset-x-0 bottom-7 flex flex-col h-56 pb-2 md:inset-auto md:top-1/2 md:-translate-y-1/2 md:left-[42%] md:right-[5%] md:h-auto';
   }
   return 'inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80';
 });

@@ -1,6 +1,7 @@
 package org.thornex.musicparty.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -45,8 +46,12 @@ public class ChannelController {
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getChannel(@PathVariable Long id) {
-        Channel channel = channelService.getChannel(id);
         Long userId = SecurityConfig.getCurrentUserId();
+        // M4：HIDDEN 频道仅成员/管理员可见，非成员返回 404 不暴露存在性
+        if (!channelService.isChannelVisibleToUser(id, userId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "频道不存在"));
+        }
+        Channel channel = channelService.getChannel(id);
         Map<String, Object> result = new HashMap<>();
         result.put("id", channel.getId());
         result.put("name", channel.getName());

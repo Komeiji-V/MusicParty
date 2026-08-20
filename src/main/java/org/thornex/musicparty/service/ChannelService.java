@@ -280,6 +280,13 @@ public class ChannelService {
                 .orElseThrow(() -> new RuntimeException("频道不存在"));
     }
 
+    /** M4：按当前用户校验频道可见性（HIDDEN 频道仅成员/管理员可见，INVITE_ONLY 不暴露元数据） */
+    public boolean isChannelVisibleToUser(Long channelId, Long userId) {
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null) return false;
+        return isChannelVisible(channel, userId);
+    }
+
     public String getChannelConfig(Long channelId, String key) {
         return channelConfigRepository.findByChannelIdAndConfigKey(channelId, key)
                 .map(ChannelConfig::getConfigValue)

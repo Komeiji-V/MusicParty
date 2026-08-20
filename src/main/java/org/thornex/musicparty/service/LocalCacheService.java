@@ -48,6 +48,7 @@ public class LocalCacheService {
     private final ApplicationEventPublisher eventPublisher;
     private final AppProperties appProperties;
     private final MusicCacheRepository musicCacheRepository;
+    private final org.thornex.musicparty.util.MediaSigner mediaSigner;
     private final Sinks.Many<DownloadTask> downloadQueue = Sinks.many().unicast().onBackpressureBuffer();
     private Disposable queueSubscription;
 
@@ -60,11 +61,13 @@ public class LocalCacheService {
     ) {}
 
     public LocalCacheService(WebClient webClient, ApplicationEventPublisher eventPublisher,
-                             AppProperties appProperties, MusicCacheRepository musicCacheRepository) {
+                             AppProperties appProperties, MusicCacheRepository musicCacheRepository,
+                             org.thornex.musicparty.util.MediaSigner mediaSigner) {
         this.webClient = webClient;
         this.eventPublisher = eventPublisher;
         this.appProperties = appProperties;
         this.musicCacheRepository = musicCacheRepository;
+        this.mediaSigner = mediaSigner;
     }
 
     @Data
@@ -273,13 +276,13 @@ public class LocalCacheService {
 
     /**
      * 获取文件访问 URL
-     * 返回: /media/id.ext
+     * 返回: /media/id.ext?exp=...&sig=...（带短时签名，防止未授权直接下载缓存）
      */
     public String getLocalUrl(String musicId) {
         CacheEntry entry = cacheIndex.get(musicId);
         if (entry != null && entry.getStatus() == CacheStatus.COMPLETED) {
             touch(musicId);
-            return "/media/" + entry.getFileName();
+            return mediaSigner.signUrl("/media/" + entry.getFileName());
         }
         return null;
     }

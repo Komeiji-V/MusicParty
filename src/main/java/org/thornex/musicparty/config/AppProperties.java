@@ -11,6 +11,13 @@ public class AppProperties {
     private JwtConfig jwt = new JwtConfig();
     private AuthCenterConfig authCenter = new AuthCenterConfig();
     private MusicApiConfig musicApi = new MusicApiConfig();
+    private CorsConfig cors = new CorsConfig();
+
+    @Data
+    public static class CorsConfig {
+        // CORS 白名单（逗号分隔），默认仅本机开发端口
+        private String allowedOrigins = "http://localhost:8848,http://localhost:8080";
+    }
 
     @Data
     public static class JwtConfig {

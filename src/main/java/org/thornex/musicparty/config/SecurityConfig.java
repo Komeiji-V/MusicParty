@@ -19,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.thornex.musicparty.repository.UserRepository;
 import org.thornex.musicparty.util.JwtUtil;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -37,21 +38,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(AppProperties appProperties) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        // CORS 白名单（M2）：不再回显任意 Origin + 凭据；默认仅本机开发端口
+        List<String> origins = Arrays.stream(appProperties.getCors().getAllowedOrigins().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/public/**", config);
-        source.registerCorsConfiguration("/embed/**", config);
         return source;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter,
+                                                   MediaAuthFilter mediaAuthFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
@@ -65,15 +71,18 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/config/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers("/embed/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/static/**").permitAll()
-                        .requestMatchers("/index.html").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+                        // 媒体缓存：签名 URL 鉴权由 MediaAuthFilter 处理（M1）
+                        .requestMatchers("/media/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/**").authenticated()
-                        .anyRequest().permitAll()
+                        // 默认拒绝（M1）：未显式放行的路径一律 401/403，避免新端点漏配
+                        .anyRequest().denyAll()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(mediaAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

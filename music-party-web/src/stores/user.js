@@ -2,19 +2,9 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { STORAGE_KEYS } from '../constants/keys';
 
-const generateToken = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
-let storedToken = localStorage.getItem(STORAGE_KEYS.TOKEN);
-if (!storedToken) {
-    storedToken = generateToken();
-    localStorage.setItem(STORAGE_KEYS.TOKEN, storedToken);
-}
-const userToken = ref(storedToken);
+// 安全修复（H1）：不再本地生成 user-token（原实现可被任意伪造，且随连接头发给服务端）。
+// 身份键由服务端派生，登录后在 /user/me 回调里下发到 userToken。
+const userToken = ref('');
 
 const storageName = localStorage.getItem(STORAGE_KEYS.USERNAME);
 const currentUser = ref({
@@ -45,7 +35,7 @@ export const useUserStore = defineStore('user', () => {
         if (!id) return 'Unknown';
         if (id === 'ADMIN') return 'AUTO_DJ';
 
-        // 如果 ID 是我自己 (比较 Token)
+        // 如果 ID 是我自己 (比较服务端下发的身份键)
         if (id === userToken.value) return currentUser.value.name;
 
         // 否则去在线列表里找 (通过 u.token 匹配)
@@ -58,9 +48,13 @@ export const useUserStore = defineStore('user', () => {
      * 2. 初始化用户身份 (来自 /app/user/me)
      * 逻辑：对比服务器认为的名字 (serverName) 和我本地存储的名字
      * serverIsGuest: 后端返回的当前是否为游客状态
+     * serverToken: 服务端派生的身份键（登录后用于 "是否我自己" 的判断）
      */
-    const initUser = (sessionId, serverName, serverIsGuest) => {
+    const initUser = (sessionId, serverName, serverIsGuest, serverToken) => {
         currentUser.value.sessionId = sessionId;
+        if (serverToken) {
+            userToken.value = serverToken;
+        }
 
         // 1. 同步名字
         if (serverName) {

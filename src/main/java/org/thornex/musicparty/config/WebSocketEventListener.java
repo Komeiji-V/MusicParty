@@ -30,7 +30,6 @@ public class WebSocketEventListener {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headerAccessor.getSessionId();
 
-        String token = headerAccessor.getFirstNativeHeader("user-token");
         String channelIdStr = headerAccessor.getFirstNativeHeader("channel-id");
 
         // 频道内名字一律使用认证中心用户名（登录后强制一致，忽略前端 user-name）
@@ -45,7 +44,8 @@ public class WebSocketEventListener {
             Long userId = headerAccessor.getSessionAttributes() != null
                     ? (Long) headerAccessor.getSessionAttributes().get("userId") : null;
             channelSessionManager.registerSession(sessionId, userId, channelId);
-            userService.handleConnect(sessionId, token, authUsername, userId);
+            // 身份键由服务端派生（登录用户 u:{userId}），不再信任客户端 user-token
+            userService.handleConnect(sessionId, userId, authUsername);
             musicPlayerService.broadcastOnlineUsers(channelId);
         }
     }

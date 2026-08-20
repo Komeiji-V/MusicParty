@@ -48,34 +48,37 @@ public class UserService {
 
     /**
      * 处理连接
+     *
+     * 安全说明（H1 修复）：身份键不再接受客户端传入的 user-token（原实现可被任意伪造/冒用）。
+     * 现在由服务端派生：登录用户 = "u:{userId}"（JWT 验签后的本地账号 ID），游客 = "g:{随机UUID}"。
+     * 该键只作为内存中的归属/限流标识，服务端从不信任消息帧里携带的身份值，全部由 session 解析。
+     *
      * @param sessionId WebSocket Session ID
-     * @param tokenFront 前端传来的 Token (可能为空)
-     * @param nameFront 前端传来的名字 (可能为空)
-     * @param userId 本地账号 ID（用于查询称号等）
+     * @param userId 本地账号 ID（JWT 验签结果；WS 强制登录，正常不为 null）
+     * @param nameFront 前端传来的名字（仅新用户首次建立时采用，登录用户强制用认证中心用户名）
      * @return 最终确定的 User 对象
      */
-    public User handleConnect(String sessionId, String tokenFront, String nameFront, Long userId) {
-        User user;
+    public User handleConnect(String sessionId, Long userId, String nameFront) {
         Long channelId = channelSessionManager.getChannelId(sessionId);
+        // 身份键：登录用户按 userId 派生（跨会话稳定，重连可恢复）；游客每次连接生成新键
+        String identityKey = userId != null ? "u:" + userId : "g:" + UUID.randomUUID();
 
-        // 1. 尝试找回老用户
-        if (StringUtils.hasText(tokenFront) && usersByToken.containsKey(tokenFront)) {
-            user = usersByToken.get(tokenFront);
-
+        // 1. 尝试找回老用户（仅登录用户可能命中：身份键稳定）
+        User user = usersByToken.get(identityKey);
+        if (user != null) {
             // 🟢 检查是否有待执行的“离开”任务，如果有，说明是快速重连，直接取消
             ScheduledFuture<?> pendingLeave = pendingLeaveEvents.remove(user.getToken());
             if (pendingLeave != null) {
                 pendingLeave.cancel(false);
                 log.info("User {} reconnected quickly, suppressed leave/join logs.", user.getName());
             } else {
-                // 如果没有待执行任务，且用户之前是离线状态，且不是游客，则发布加入日志
-                if (user.getSessionId() == null && !user.isGuest()) {
+                // 如果没有待执行任务，且用户之前是离线状态，则发布加入日志
+                if (user.getSessionId() == null) {
                     eventPublisher.publishEvent(new SystemMessageEvent(this, SystemMessageEvent.Level.INFO, PlayerAction.USER_JOIN, user.getToken(), null, channelId));
                 }
             }
 
-            log.info("User Reconnected: {} (Token: {}) -> New Session: {}", user.getName(), user.getToken(), sessionId);
-            // ... (保持原有逻辑)
+            log.info("User Reconnected: {} (uid: {}) -> New Session: {}", user.getName(), userId, sessionId);
             if (user.getSessionId() != null) {
                 sessionToToken.remove(user.getSessionId());
             }
@@ -83,14 +86,12 @@ public class UserService {
         }
         // 2. 新用户注册
         else {
-            String newToken = StringUtils.hasText(tokenFront) ? tokenFront : UUID.randomUUID().toString();
             String initialName = StringUtils.hasText(nameFront) ? nameFront : "游客";
             initialName = deduplicateName(initialName);
 
-            user = new User(newToken, sessionId, initialName);
-            usersByToken.put(newToken, user);
-            log.info("New User Registered: {} (Token: {})", initialName, newToken);
-            // 注意：新注册的游客不发加入日志，只有改名后才发
+            user = new User(identityKey, sessionId, initialName);
+            usersByToken.put(identityKey, user);
+            log.info("New User Registered: {} (identity: {}, session: {})", initialName, identityKey, sessionId);
         }
 
         user.setLastActiveTime(System.currentTimeMillis());
@@ -275,7 +276,7 @@ public class UserService {
             boolean isExpired = (now - user.getLastActiveTime()) > USER_EXPIRATION_MS;
 
             if (isOffline && isExpired) {
-                log.debug("Cleaning up expired user: {} (Token: {})", user.getName(), user.getToken());
+                log.debug("Cleaning up expired user: {} (uid: {})", user.getName(), user.getUserId());
                 return true; // 删除
             }
             return false; // 保留

@@ -134,7 +134,6 @@ export const usePlayerStore = defineStore('player', () => {
         const authHeaders = {
             // 频道内名字使用认证中心用户名（后端会强制覆盖）
             'user-name': authStore.user?.username || localStorage.getItem(STORAGE_KEYS.USERNAME) || '',
-            'user-token': userStore.userToken,
             'channel-id': localStorage.getItem(STORAGE_KEYS.CHANNEL_ID) || '1',
             'auth-token': localStorage.getItem('mp_token') || ''
         };
@@ -145,12 +144,12 @@ export const usePlayerStore = defineStore('player', () => {
 
         // 补充 UserMe 的特殊处理 (因为它需要用到 renameUser，如果放在 socketHandler 会导致循环依赖)
         subscriptions[WS_DEST.USER_ME] = (me) => {
-            // me: { token, sessionId, name, isGuest }
-            userStore.initUser(me.sessionId, me.name, me.isGuest);
+            // me: { token(服务端身份键), sessionId, name, isGuest }
+            userStore.initUser(me.sessionId, me.name, me.isGuest, me.token);
         };
 
         subscriptions[WS_DEST.USER_ME_UPDATE] = (me) => {
-            userStore.initUser(me.sessionId, me.name, me.isGuest);
+            userStore.initUser(me.sessionId, me.name, me.isGuest, me.token);
         };
 
         const callbacks = createSocketCallbacks();

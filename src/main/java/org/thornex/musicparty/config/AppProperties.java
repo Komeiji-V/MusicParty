@@ -14,8 +14,9 @@ public class AppProperties {
 
     @Data
     public static class JwtConfig {
-        private String secret = "musicparty-jwt-secret-change-in-production";
-        private long expirationMs = 604800000;
+        // 必须通过环境变量 JWT_SECRET 提供（与认证中心一致），无默认值：留空会拒绝启动
+        private String secret = "";
+        private long expirationMs = 86400000;
     }
 
     @Data
@@ -30,7 +31,6 @@ public class AppProperties {
         private QqApiConfig qq;
         private KugouApiConfig kugou;
         private BilibiliApiConfig bilibili;
-        private String adminPassword;
         private String baseUrl;
         private String authorName = "ThorNex";
         private String backWords = "THORNEX";

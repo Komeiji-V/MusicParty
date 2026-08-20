@@ -7,7 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 public class User {
-    private final String token; // 🟢 真正的唯一标识 (UUID)
+    /** 服务端派生的身份键（登录用户 "u:{userId}" / 游客 "g:{UUID}"），非客户端凭证，仅作内存归属/限流标识 */
+    private final String token;
     private Long userId;         // 🟢 本地账号 ID（WS CONNECT 时关联，用于查询称号等）
     private String sessionId;   // 🟢 当前的 WebSocket 会话 ID (会变)
     private String name;

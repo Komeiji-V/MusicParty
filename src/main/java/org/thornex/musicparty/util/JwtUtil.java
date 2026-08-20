@@ -31,15 +31,9 @@ public class JwtUtil {
     public JwtUtil(AppProperties appProperties) {
         String secret = appProperties.getJwt().getSecret();
         if (secret == null || secret.isBlank() || INSECURE_DEFAULT_SECRETS.contains(secret)) {
-            boolean allowInsecure = Boolean.parseBoolean(
-                    System.getenv("ALLOW_INSECURE_JWT"));
-            if (!allowInsecure) {
-                throw new IllegalStateException(
-                        "检测到默认或不安全的 JWT_SECRET，已拒绝启动：任何人可伪造用户身份。"
-                                + "请设置与认证中心完全一致的 JWT_SECRET（生成方式：openssl rand -hex 32）。"
-                                + "仅限本地/内网测试时可设置环境变量 ALLOW_INSECURE_JWT=true 跳过本检查。");
-            }
-            log.warn("!!! JWT_SECRET 为默认/不安全值且已显式放行（ALLOW_INSECURE_JWT=true），生产环境禁止如此部署 !!!");
+            throw new IllegalStateException(
+                    "检测到缺失、默认或不安全的 JWT_SECRET，已拒绝启动：任何人可伪造用户身份。"
+                            + "请设置与认证中心完全一致的 JWT_SECRET（生成方式：openssl rand -hex 32）。");
         }
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }

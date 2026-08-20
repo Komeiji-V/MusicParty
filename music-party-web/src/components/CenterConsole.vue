@@ -244,7 +244,7 @@
                 v-else
                 v-for="(slot, i) in slotLines"
                 :key="i"
-                class="w-full flex items-center transition-all duration-500"
+                class="relative w-full flex items-center transition-all duration-500"
                 :class="slot
                   ? (slot._center ? 'h-auto py-0.5' : 'h-10 md:h-11')
                   : 'h-10 md:h-11'"
@@ -564,10 +564,16 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* 歌词行交叉切换：旧文字上滑淡出 + 新文字下滑淡入同时进行（无空白闪烁） */
+/* 歌词行交叉切换：旧文字上滑淡出 + 新文字下滑淡入同时进行（无空白闪烁）。
+   leave 元素 absolute 脱离文档流（盖在新文字上淡出），
+   否则新旧元素在 flex 槽位并排会把新文字挤到右侧再弹回 */
 .lyric-swap-enter-active,
 .lyric-swap-leave-active {
   transition: opacity 0.32s ease, transform 0.32s ease;
+}
+.lyric-swap-leave-active {
+  position: absolute;
+  inset: 0;
 }
 .lyric-swap-enter-from {
   opacity: 0;

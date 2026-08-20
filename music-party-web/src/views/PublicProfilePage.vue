@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Share2, ListMusic } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -267,5 +267,19 @@ onMounted(async () => {
   uiStore.fetchConfig()
   if (!auth.user) await auth.fetchMe().catch(() => {})
   load()
+})
+
+// 修复：同一组件在 /u/:authUid 间切换时（Vue Router 复用实例）不触发 onMounted，
+// 必须监听参数变化重新加载
+watch(() => route.params.authUid, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    loading.value = true
+    notFound.value = false
+    loadError.value = false
+    loaded.value = false
+    displayName.value = ''
+    featured.widgets = []
+    load()
+  }
 })
 </script>

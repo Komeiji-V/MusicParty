@@ -175,21 +175,15 @@ public class PublicController {
     }
 
     /**
-     * 公开主页路由：支持不可变 authUid（纯数字，优先）或 username（兼容旧链接）。
-     * 用户名可改，authUid 永不变——改名后旧 username 链接失效，authUid 链接永久有效。
+     * 公开主页路由：只接受不可变 authUid（纯数字）。用户名可改、ID 永不变，
+     * 因此不再兼容 username 旧链接（改名后旧链接本就会失效，保留只会掩盖问题）。
      */
     private User resolveUser(String identifier) {
-        User user = null;
-        if (identifier != null && identifier.matches("\\d+")) {
-            user = userRepository.findByAuthUid(Long.parseLong(identifier)).orElse(null);
-        }
-        if (user == null) {
-            user = userRepository.findByUsernameIgnoreCase(identifier).orElse(null);
-        }
-        if (user == null) {
+        if (identifier == null || !identifier.matches("\\d+")) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在");
         }
-        return user;
+        return userRepository.findByAuthUid(Long.parseLong(identifier))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
     }
 
     /** 查询称号定义的颜色（未定义时返回默认色） */

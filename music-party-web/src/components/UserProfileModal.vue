@@ -16,12 +16,13 @@
         <div v-if="loading" class="text-center py-10 text-medical-400 font-mono text-sm">> LOADING...</div>
 
         <template v-else>
-          <!-- 打开公开主页（真实用户名） -->
+          <!-- 打开公开主页（不可变 authUid；无 authUid 时隐藏——只有数字 ID 才能路由） -->
           <button
+            v-if="props.authUid != null && props.authUid !== ''"
             @click="openPublicProfile"
             class="w-full flex items-center justify-center gap-2 py-2 border border-accent text-accent text-xs font-bold hover:bg-accent hover:text-white transition-colors chamfer-br"
           >
-            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页（/u/{{ props.authUid || props.username }}）
+            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页（/u/{{ props.authUid }}）
           </button>
 
           <!-- 称号 -->
@@ -104,20 +105,20 @@ const loading = ref(true)
 const featured = ref({ song: null, album: null, lyric: '' })
 const publicPlaylists = ref([])
 
-// 公开主页路由：优先不可变 authUid（用户改名后链接仍有效），无则退回 username
-function publicIdentifier() {
-  return (props.authUid != null && props.authUid !== '') ? String(props.authUid) : props.username
-}
-
 function openPublicProfile() {
-  const id = publicIdentifier()
-  if (!id) return
-  window.open(`/u/${encodeURIComponent(id)}`, '_blank')
+  // 只允许不可变 authUid（数字 ID）路由；无 authUid 时按钮已隐藏
+  if (props.authUid == null || props.authUid === '') return
+  window.open(`/u/${encodeURIComponent(String(props.authUid))}`, '_blank')
 }
 
 onMounted(async () => {
   try {
-    const id = publicIdentifier()
+    // 无 authUid 时不请求公开接口（后端只接受数字 ID）
+    if (props.authUid == null || props.authUid === '') {
+      loading.value = false
+      return
+    }
+    const id = String(props.authUid)
     const [f, pl] = await Promise.all([
       client.get(`/api/public/users/${encodeURIComponent(id)}/featured`).catch(() => ({})),
       client.get(`/api/public/users/${encodeURIComponent(id)}/playlists`).catch(() => [])

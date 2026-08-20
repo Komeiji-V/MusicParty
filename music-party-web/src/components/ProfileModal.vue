@@ -308,8 +308,9 @@ async function loadFeatured() {
   } catch (e) { /* ignore */ }
 }
 
-onMounted(() => {
-  if (!auth.user) auth.fetchMe()
+onMounted(async () => {
+  // 先确保拿到用户信息（含 authUid），否则公开接口请求会带空 ID 打到 404
+  if (!auth.user) await auth.fetchMe().catch(() => {})
   loadProfile()
   loadTitles()
   loadFeatured()

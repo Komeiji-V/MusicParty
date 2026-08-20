@@ -3,7 +3,7 @@
   <!-- full 样式：整体 justify-start 让封面左移，为右侧歌词让位 -->
   <div
       class="relative w-full h-full flex items-center overflow-hidden transition-all duration-500"
-      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[15%]' : 'justify-center'"
+      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[25%]' : 'justify-center'"
   >
 
     <!-- LAYER 0: 静态背景层 (最底层) -->
@@ -33,47 +33,28 @@
       <div class="absolute inset-0 w-[340px] h-[340px] m-auto border border-medical-200 rounded-full animate-[spin_15s_linear_infinite_reverse] opacity-20"></div>
     </div>
 
-    <!-- LAYER 2: 信息层 (歌词 & 日志) -->
+    <!-- LAYER 2: 信息层 (compact 歌词 & 日志) -->
     <div class="absolute inset-0 z-20 pointer-events-none">
-      <!-- 歌词：compact=左下角 / full=封面右侧滚动 -->
-      <div class="absolute font-mono transition-all duration-300" :class="lyricWrapClass">
-        <!-- 标题行：LYRIC_SYSTEM + 翻译/罗马音开关 + 样式切换按钮 -->
+      <!-- compact 歌词：左下角（原样式） -->
+      <div class="absolute font-mono transition-all duration-300 inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80">
+        <!-- 标题行：LYRIC_SYSTEM + 样式切换按钮 -->
         <div class="pointer-events-auto flex items-center gap-2 mb-1 min-h-0 flex-shrink-0">
           <div class="hidden md:block text-xs text-accent/80 tracking-widest border-b border-accent/30 pb-1">
             LYRIC_SYSTEM
           </div>
-          <!-- 翻译开关（仅网易云翻译可用时显示） -->
-          <button
-              v-if="player.lyricStyle === 'full' && player.lyricFull.tlyric"
-              @click="player.showTranslation = !player.showTranslation"
-              class="px-1.5 py-0.5 text-[10px] font-bold border rounded-sm transition-colors"
-              :class="player.showTranslation ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
-          >翻译</button>
-          <!-- 罗马音开关（仅网易云罗马音可用时显示） -->
-          <button
-              v-if="player.lyricStyle === 'full' && player.lyricFull.romalrc"
-              @click="player.showRoman = !player.showRoman"
-              class="px-1.5 py-0.5 text-[10px] font-bold border rounded-sm transition-colors"
-              :class="player.showRoman ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
-          >罗马音</button>
           <!-- 样式切换 -->
           <button
               @click="toggleLyricStyle"
-              :disabled="player.lyricStyle === 'compact' && lyricFullDisabled"
-              :title="player.lyricStyle === 'compact'
-                ? (lyricFullDisabled ? '歌词过长，无法展开歌词模式' : '展开歌词（封面左移+聚焦歌词）')
-                : '收起歌词（原样式）'"
-              :class="{ 'opacity-40 cursor-not-allowed': player.lyricStyle === 'compact' && lyricFullDisabled }"
+              :disabled="lyricFullDisabled"
+              :title="lyricFullDisabled ? '歌词区域过窄，无法展开歌词模式' : '展开歌词（封面左移+聚焦歌词）'"
+              :class="{ 'opacity-40 cursor-not-allowed': lyricFullDisabled }"
               class="ml-auto flex items-center justify-center w-6 h-6 text-medical-400 hover:text-accent transition-colors border border-medical-200 hover:border-accent rounded-sm bg-white/60 backdrop-blur-sm"
           >
-            <Maximize2 v-if="player.lyricStyle === 'compact'" class="w-3.5 h-3.5" />
-            <Minimize2 v-else class="w-3.5 h-3.5" />
+            <Maximize2 class="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <!-- compact：左下角当前行（原样式） -->
         <div
-            v-if="player.lyricStyle === 'compact'"
             class="w-full space-y-1 text-xs font-normal text-medical-900 leading-tight mix-blend-normal md:mix-blend-multiply md:text-medical-600 flex flex-col md:justify-end min-h-0"
         >
           <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center md:justify-start">
@@ -92,36 +73,6 @@
             </span>
           </div>
         </div>
-
-        <!-- full：封面右侧滚动歌词（当前行居中高亮 + 上下渐变） -->
-        <div
-            v-else
-            ref="lyricAreaRef"
-            class="pointer-events-auto relative overflow-hidden h-[224px] md:h-[280px]"
-        >
-          <!-- Apple Music 风格聚焦歌词：当前行大字靠左、前后行小字淡出（行原地切换，不滚动，高度不超过封面） -->
-          <div class="absolute inset-0 flex flex-col justify-center items-start gap-2 md:gap-3">
-            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center w-full">
-              <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
-            </div>
-            <div
-                v-else
-                v-for="(line, i) in activeWindow"
-                :key="line.time"
-                class="w-full text-left px-1 transition-all duration-500 leading-snug break-words"
-                :class="line._center
-                  ? 'text-2xl md:text-[30px] font-black text-medical-900'
-                  : line._near
-                    ? 'text-sm md:text-base font-bold text-medical-500 opacity-60'
-                    : 'text-xs md:text-sm text-medical-300 opacity-30'"
-            >
-              <!-- 罗马音在歌词上方（Apple Music 日文风格） -->
-              <div v-if="line._center && player.showRoman && line.roman" class="text-xs md:text-sm text-medical-400 italic mb-1">{{ line.roman }}</div>
-              <div>{{ line.text }}</div>
-              <div v-if="line._center && player.showTranslation && line.trans" class="text-xs md:text-sm text-accent mt-1">{{ line.trans }}</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- 右侧：伪系统日志 -->
@@ -133,7 +84,7 @@
     </div>
 
     <!-- LAYER 3: 核心实体层 (封面)；左移由根 flex 控制 -->
-    <div class="relative z-30 flex items-center justify-center pointer-events-auto">
+    <div class="relative z-30 flex items-center justify-center pointer-events-auto flex-shrink-0">
       <div class="relative">
         <div v-if="player.nowPlaying?.enqueuedById" class="absolute -top-4 right-0 text-xs font-mono text-accent flex items-center gap-2 z-20 select-none">
           <span>REQ_BY</span>
@@ -238,6 +189,63 @@
               class="absolute top-0 left-0 z-50 px-3 py-1 font-mono text-xs font-bold chamfer-br transition-colors duration-300 bg-medical-900/80 backdrop-blur-sm text-white"
           >
             {{ player.isPaused ? 'PAUSED' : 'PLAYING' }}
+          </div>
+        </div>
+      </div>
+
+      <!-- full 歌词区：与封面同排（间距固定 ml，缩放不变）、贴紧封面右侧 -->
+      <div
+          v-if="player.lyricStyle === 'full'"
+          ref="lyricAreaRef"
+          class="relative z-30 flex flex-col ml-4 md:ml-8 w-[55vw] md:w-[520px] flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden"
+      >
+        <!-- 标题行：LYRIC_SYSTEM + 翻译/罗马音开关 + 收起按钮 -->
+        <div class="pointer-events-auto flex items-center gap-2 mb-1 flex-shrink-0">
+          <div class="hidden md:block text-xs text-accent/80 tracking-widest border-b border-accent/30 pb-1">
+            LYRIC_SYSTEM
+          </div>
+          <button
+              v-if="player.lyricFull.tlyric"
+              @click="player.showTranslation = !player.showTranslation"
+              class="px-2 py-0.5 text-[11px] font-bold border rounded-sm transition-colors"
+              :class="player.showTranslation ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
+          >翻译</button>
+          <button
+              v-if="player.lyricFull.romalrc"
+              @click="player.showRoman = !player.showRoman"
+              class="px-2 py-0.5 text-[11px] font-bold border rounded-sm transition-colors"
+              :class="player.showRoman ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
+          >罗马音</button>
+          <button
+              @click="toggleLyricStyle"
+              title="收起歌词（原样式）"
+              class="ml-auto flex items-center justify-center w-6 h-6 text-medical-400 hover:text-accent transition-colors border border-medical-200 hover:border-accent rounded-sm bg-white/60 backdrop-blur-sm"
+          >
+            <Minimize2 class="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <!-- Apple Music 风格聚焦歌词：当前行大字靠左、前后行小字淡出（行原地切换，不滚动） -->
+        <div class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden">
+          <div class="absolute inset-0 flex flex-col justify-center items-start gap-2 md:gap-3">
+            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center w-full">
+              <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
+            </div>
+            <div
+                v-else
+                v-for="(line, i) in activeWindow"
+                :key="line.time"
+                class="w-full text-left px-1 transition-all duration-500 leading-snug break-words"
+                :class="line._center
+                  ? 'text-2xl md:text-[30px] font-black text-medical-900'
+                  : line._near
+                    ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
+                    : 'text-xs md:text-sm text-medical-400 opacity-40'"
+            >
+              <!-- 罗马音在歌词上方（黑色） -->
+              <div v-if="line._center && player.showRoman && line.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-1">{{ line.roman }}</div>
+              <div>{{ line.text }}</div>
+              <div v-if="line._center && player.showTranslation && line.trans" class="text-sm md:text-lg text-accent font-medium mt-1">{{ line.trans }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -387,13 +395,7 @@ const measureLyricFit = () => {
 watch(() => player.lyricStyle, () => { nextTick(measureLyricFit); });
 onMounted(() => { nextTick(measureLyricFit); });
 
-// 歌词容器定位：full 时贴近封面右侧靠左（高度不超过封面）
-const lyricWrapClass = computed(() => {
-  if (player.lyricStyle === 'full') {
-    return 'inset-x-0 bottom-7 flex flex-col h-56 pb-2 md:inset-auto md:top-1/2 md:-translate-y-1/2 md:left-[42%] md:right-[5%] md:h-auto';
-  }
-  return 'inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80';
-});
+
 
 // === 系统日志逻辑 (Realtime) ===
 const logs = ref(['SYS_INIT: COMPLETED', 'LINK_START: OK']);

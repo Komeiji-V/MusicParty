@@ -6,8 +6,8 @@ const routes = [
   { path: '/', name: 'Home', component: () => import('../views/HomePage.vue') },
   { path: '/room', name: 'Room', component: () => import('../views/RoomPage.vue'), meta: { requiresAuth: true } },
   { path: '/profile', name: 'Profile', component: () => import('../views/ProfilePage.vue'), meta: { requiresAuth: true } },
-  // 公开主页（任何人可访问，无需登录）
-  { path: '/u/:username', name: 'PublicProfile', component: () => import('../views/PublicProfilePage.vue') },
+  // 公开主页（任何人可访问，无需登录）；:authUid 为不可变认证中心 ID（也兼容 username 旧链接）
+  { path: '/u/:authUid', name: 'PublicProfile', component: () => import('../views/PublicProfilePage.vue') },
   { path: '/playlists', name: 'Playlists', component: () => import('../views/PlaylistsPage.vue'), meta: { requiresAuth: true } },
   { path: '/channel/:id/settings', name: 'ChannelSettings', component: () => import('../views/ChannelSettingsPage.vue'), meta: { requiresAuth: true } },
   { path: '/admin', name: 'Admin', component: () => import('../views/AdminPage.vue'), meta: { requiresAuth: true, requiresSuperAdmin: true } },

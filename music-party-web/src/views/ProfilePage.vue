@@ -394,7 +394,7 @@ const avatarLetter = computed(() => (auth.user?.username || '?').charAt(0).toUpp
 
 async function loadFeatured() {
   try {
-    const data = await client.get(`/api/public/users/${encodeURIComponent(auth.user?.username || '')}/featured`)
+    const data = await client.get(`/api/public/users/${encodeURIComponent(auth.user?.authUid || '')}/featured`)
     featured.widgets = sortAlbumFirst(Array.isArray(data.widgets) ? data.widgets : [])
     const me = await client.get('/api/titles/mine').catch(() => null)
     allTitles.value = me?.titles || []
@@ -453,9 +453,10 @@ function go(path) {
 
 // 预览自己的公开主页（新标签打开，不打断编辑状态）
 function openPublicPreview() {
-  const username = auth.user?.username
-  if (!username) return
-  window.open(`/u/${encodeURIComponent(username)}`, '_blank')
+  // 用不可变 authUid 拼公开主页链接（用户改名后链接仍有效）
+  const uid = auth.user?.authUid
+  if (!uid) return
+  window.open(`/u/${encodeURIComponent(uid)}`, '_blank')
 }
 
 async function loadProfile() {
@@ -463,7 +464,7 @@ async function loadProfile() {
   try {
     const [playlistData, likeData] = await Promise.all([
       client.get('/api/user/playlists').catch(() => []),
-      client.get(`/api/public/users/${encodeURIComponent(auth.user?.username || '')}/likes`).catch(() => ({ likes: 0 }))
+      client.get(`/api/public/users/${encodeURIComponent(auth.user?.authUid || '')}/likes`).catch(() => ({ likes: 0 }))
     ])
     playlists.value = Array.isArray(playlistData) ? playlistData : []
     stats.value.likes = Number(likeData?.likes) || 0

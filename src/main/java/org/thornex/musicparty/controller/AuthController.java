@@ -44,6 +44,7 @@ public class AuthController {
                     "token", body.get("token"),
                     "user", Map.of(
                             "id", user.getId(),
+                            "authUid", user.getAuthUid() != null ? user.getAuthUid() : 0L,
                             "username", user.getUsername(),
                             "email", user.getEmail() != null ? user.getEmail() : "",
                             "emailVerified", user.getEmailVerified(),
@@ -91,6 +92,7 @@ public class AuthController {
         User user = authService.getCurrentUser(principal.userId());
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
+                "authUid", user.getAuthUid() != null ? user.getAuthUid() : 0L,
                 "username", user.getUsername(),
                 "email", user.getEmail() != null ? user.getEmail() : "",
                 "emailVerified", user.getEmailVerified(),

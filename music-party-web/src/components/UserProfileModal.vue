@@ -21,7 +21,7 @@
             @click="openPublicProfile"
             class="w-full flex items-center justify-center gap-2 py-2 border border-accent text-accent text-xs font-bold hover:bg-accent hover:text-white transition-colors chamfer-br"
           >
-            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页（/u/{{ props.username }}）
+            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页（/u/{{ props.authUid || props.username }}）
           </button>
 
           <!-- 称号 -->
@@ -94,6 +94,7 @@ import { titleTextColor } from '../utils/titleColor'
 
 const props = defineProps({
   username: { type: String, required: true },
+  authUid: { type: [Number, String], default: null },
   title: { type: String, default: '' },
   titleColor: { type: String, default: '' }
 })
@@ -103,16 +104,23 @@ const loading = ref(true)
 const featured = ref({ song: null, album: null, lyric: '' })
 const publicPlaylists = ref([])
 
+// 公开主页路由：优先不可变 authUid（用户改名后链接仍有效），无则退回 username
+function publicIdentifier() {
+  return (props.authUid != null && props.authUid !== '') ? String(props.authUid) : props.username
+}
+
 function openPublicProfile() {
-  if (!props.username) return
-  window.open(`/u/${encodeURIComponent(props.username)}`, '_blank')
+  const id = publicIdentifier()
+  if (!id) return
+  window.open(`/u/${encodeURIComponent(id)}`, '_blank')
 }
 
 onMounted(async () => {
   try {
+    const id = publicIdentifier()
     const [f, pl] = await Promise.all([
-      client.get(`/api/public/users/${encodeURIComponent(props.username)}/featured`).catch(() => ({})),
-      client.get(`/api/public/users/${encodeURIComponent(props.username)}/playlists`).catch(() => [])
+      client.get(`/api/public/users/${encodeURIComponent(id)}/featured`).catch(() => ({})),
+      client.get(`/api/public/users/${encodeURIComponent(id)}/playlists`).catch(() => [])
     ])
     featured.value = {
       song: (typeof f.featuredSong === 'object' && f.featuredSong) ? f.featuredSong : null,

@@ -64,12 +64,10 @@ public class ProfileController {
         return ResponseEntity.ok(Map.of("message", "主页展示已更新"));
     }
 
-    /** 公开查看某用户的主页展示 */
-    @GetMapping("/api/public/users/{username}/featured")
-    public ResponseEntity<?> featured(@PathVariable String username) {
-        // 忽略大小写匹配，容忍 Preview_Admin / preview_admin 等写法
-        User user = userRepository.findByUsernameIgnoreCase(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
+    /** 公开查看某用户的主页展示；identifier 支持 authUid（纯数字）或 username（兼容旧链接） */
+    @GetMapping("/api/public/users/{identifier}/featured")
+    public ResponseEntity<?> featured(@PathVariable String identifier) {
+        User user = resolveUser(identifier);
         String title = null;
         String color = null;
         if (user.getCurrentTitle() != null && !user.getCurrentTitle().isBlank()) {
@@ -165,5 +163,23 @@ public class ProfileController {
         } catch (Exception e) {
             return stored; // 兼容旧文本数据
         }
+    }
+
+    /**
+     * 公开主页路由：支持不可变 authUid（纯数字，优先）或 username（兼容旧链接）。
+     * 用户名可改，authUid 永不变——改名后旧 username 链接失效，authUid 链接永久有效。
+     */
+    private User resolveUser(String identifier) {
+        User user = null;
+        if (identifier != null && identifier.matches("\\d+")) {
+            user = userRepository.findByAuthUid(Long.parseLong(identifier)).orElse(null);
+        }
+        if (user == null) {
+            user = userRepository.findByUsernameIgnoreCase(identifier).orElse(null);
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在");
+        }
+        return user;
     }
 }

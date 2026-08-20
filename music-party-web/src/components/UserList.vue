@@ -87,6 +87,7 @@
     <UserProfileModal
       v-if="profileUser"
       :username="profileUser.username || profileUser.name"
+      :auth-uid="profileUser.authUid"
       :title="profileUser.title || ''"
       :title-color="profileUser.titleColor || ''"
       @close="profileUser = null"

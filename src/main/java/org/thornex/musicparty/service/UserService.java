@@ -234,10 +234,12 @@ public class UserService {
         String title = null;
         String color = null;
         String username = null;
+        Long authUid = null;
         if (u.getUserId() != null) {
             org.thornex.musicparty.entity.User dbUser = userRepository.findById(u.getUserId()).orElse(null);
             if (dbUser != null) {
                 username = dbUser.getUsername();
+                authUid = dbUser.getAuthUid();
                 String t = dbUser.getCurrentTitle();
                 if (t != null && !t.isBlank()) {
                     title = t;
@@ -247,7 +249,7 @@ public class UserService {
                 }
             }
         }
-        return new UserSummary(u.getToken(), u.getSessionId(), u.getName(), u.isGuest(), username, title, color);
+        return new UserSummary(u.getToken(), u.getSessionId(), u.getName(), u.isGuest(), username, title, color, authUid);
     }
 
     public int getOnlineUserCount(Long channelId) {

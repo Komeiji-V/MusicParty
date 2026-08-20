@@ -283,7 +283,7 @@ async function loadProfile() {
   try {
     const [playlistData, likeData] = await Promise.all([
       client.get('/api/user/playlists').catch(() => []),
-      client.get(`/api/public/users/${encodeURIComponent(auth.user?.username || '')}/likes`).catch(() => ({ likes: 0 }))
+      client.get(`/api/public/users/${encodeURIComponent(auth.user?.authUid || '')}/likes`).catch(() => ({ likes: 0 }))
     ])
     playlists.value = Array.isArray(playlistData) ? playlistData : []
     stats.value.likes = Number(likeData?.likes) || 0
@@ -299,7 +299,7 @@ function managePlaylists() {
 
 async function loadFeatured() {
   try {
-    const data = await client.get(`/api/public/users/${encodeURIComponent(auth.user?.username || '')}/featured`)
+    const data = await client.get(`/api/public/users/${encodeURIComponent(auth.user?.authUid || '')}/featured`)
     featured.song = (typeof data.featuredSong === 'object' && data.featuredSong) ? data.featuredSong
       : (typeof data.featuredSong === 'string' && data.featuredSong) ? { name: data.featuredSong, artists: [], coverUrl: '' } : null
     featured.album = (typeof data.featuredAlbum === 'object' && data.featuredAlbum) ? data.featuredAlbum

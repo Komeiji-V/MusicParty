@@ -41,10 +41,10 @@
       <!-- 用户不存在 -->
       <div v-else-if="notFound" class="bg-white border border-medical-200 chamfer-br p-12 text-center">
         <div class="text-2xl font-black text-medical-900 tracking-tighter mb-2">USER NOT FOUND</div>
-        <p class="font-mono text-xs text-medical-400 tracking-wider mb-2">用户不存在，请检查用户名是否正确</p>
+        <p class="font-mono text-xs text-medical-400 tracking-wider mb-2">用户不存在，请检查链接是否正确</p>
         <p class="text-xs text-medical-500 leading-6 mb-6 max-w-md mx-auto">
-          提示：频道成员列表里带 <span class="font-mono text-accent">_1 / _2</span> 后缀的是在线显示名（重名自动去重），
-          不是公开主页地址。请使用真实用户名访问，或从个人空间页的「预览主页」按钮打开正确链接。
+          公开主页使用不可变的数字 ID 访问（如 <span class="font-mono text-accent">/u/95</span>），
+          也可以从频道成员列表或个人空间页的「预览主页」按钮打开正确链接。
         </p>
         <button
           @click="go('/')"
@@ -69,7 +69,7 @@
 
               <div class="flex-1 min-w-0 text-center sm:text-left">
                 <div class="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                  <h2 class="text-2xl md:text-3xl font-black text-medical-900 tracking-tighter">{{ username }}</h2>
+                  <h2 class="text-2xl md:text-3xl font-black text-medical-900 tracking-tighter">{{ displayName || identifier }}</h2>
                 </div>
                 <p class="text-xs font-mono text-medical-300 mt-2 tracking-wider">
                   <span class="text-green-600">PUBLIC PROFILE</span>
@@ -177,7 +177,10 @@ const uiStore = useUiStore()
 const { success, error } = useToast()
 
 const year = new Date().getFullYear()
-const username = computed(() => route.params.username || '')
+// 路由参数：不可变 authUid（纯数字，推荐）或 username（兼容旧链接），后端统一解析
+const identifier = computed(() => route.params.authUid || '')
+// 页面展示用真实用户名（来自 API，随 auth-center 改名同步）
+const displayName = ref('')
 const loading = ref(true)
 const notFound = ref(false)
 const loadError = ref(false)
@@ -191,7 +194,7 @@ const albumSongsLoading = ref(false)
 const firstAlbum = computed(() => featured.widgets.find(w => w.kind === 'album') || null)
 const songWidgets = computed(() => featured.widgets.filter(w => w.kind === 'song' || w.kind === 'lyric'))
 
-const avatarLetter = computed(() => (username.value || '?').charAt(0).toUpperCase())
+const avatarLetter = computed(() => (displayName.value || identifier.value || '?').charAt(0).toUpperCase())
 
 async function loadAlbumSongs() {
   const album = firstAlbum.value
@@ -217,7 +220,7 @@ async function load() {
   loadError.value = false
   let f = null
   try {
-    f = await client.get(`/api/public/users/${encodeURIComponent(username.value)}/featured`)
+    f = await client.get(`/api/public/users/${encodeURIComponent(identifier.value)}/featured`)
   } catch (e) {
     if (e.response?.status === 404) {
       notFound.value = true
@@ -227,11 +230,12 @@ async function load() {
     loading.value = false
     return
   }
+  displayName.value = f?.username || identifier.value
   try {
     const [pl, likeData, titlesData] = await Promise.all([
-      client.get(`/api/public/users/${encodeURIComponent(username.value)}/playlists`).catch(() => []),
-      client.get(`/api/public/users/${encodeURIComponent(username.value)}/likes`).catch(() => ({ likes: 0 })),
-      client.get(`/api/public/users/${encodeURIComponent(username.value)}/titles`).catch(() => ({ titles: [] }))
+      client.get(`/api/public/users/${encodeURIComponent(identifier.value)}/playlists`).catch(() => []),
+      client.get(`/api/public/users/${encodeURIComponent(identifier.value)}/likes`).catch(() => ({ likes: 0 })),
+      client.get(`/api/public/users/${encodeURIComponent(identifier.value)}/titles`).catch(() => ({ titles: [] }))
     ])
     featured.widgets = Array.isArray(f.widgets) ? f.widgets : []
     publicPlaylists.value = Array.isArray(pl) ? pl : []

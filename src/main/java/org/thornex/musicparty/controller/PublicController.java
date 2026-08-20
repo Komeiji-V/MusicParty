@@ -116,27 +116,26 @@ public class PublicController {
         return result;
     }
 
-    @GetMapping("/users/{username}/likes")
-    public Map<String, Object> userLikes(@PathVariable String username) {
-        long count = likeRecordRepository.countByRequesterName(username);
-        return Map.of("username", username, "likes", count);
+    @GetMapping("/users/{identifier}/likes")
+    public Map<String, Object> userLikes(@PathVariable String identifier) {
+        // authUid（纯数字）或 username 均可定位（不可变 authUid 路由）
+        User user = resolveUser(identifier);
+        long count = likeRecordRepository.countByRequesterName(user.getUsername());
+        return Map.of("username", user.getUsername(), "likes", count);
     }
 
-    @GetMapping("/users/{username}/playlists")
-    public List<Map<String, Object>> userPlaylists(@PathVariable String username) {
-        // 忽略大小写匹配公开主页用户名
-        User user = userRepository.findByUsernameIgnoreCase(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
+    @GetMapping("/users/{identifier}/playlists")
+    public List<Map<String, Object>> userPlaylists(@PathVariable String identifier) {
+        User user = resolveUser(identifier);
         return playlistRepository.findByUserIdAndIsPublic(user.getId(), true).stream()
                 .map(this::buildPlaylistCard)
                 .collect(Collectors.toList());
     }
 
     /** 公开主页：该用户获得的全部称号（含颜色），current 标记当前佩戴的称号 */
-    @GetMapping("/users/{username}/titles")
-    public Map<String, Object> userTitles(@PathVariable String username) {
-        User user = userRepository.findByUsernameIgnoreCase(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在"));
+    @GetMapping("/users/{identifier}/titles")
+    public Map<String, Object> userTitles(@PathVariable String identifier) {
+        User user = resolveUser(identifier);
         String currentTitle = user.getCurrentTitle();
         List<Map<String, Object>> titles = titleRepository.findByUserIdOrderByGrantedAtAsc(user.getId()).stream()
                 .map(t -> {
@@ -173,6 +172,24 @@ public class PublicController {
 
     private JoinPermission resolvePermission(Channel channel) {
         return channel.getJoinPermission() != null ? channel.getJoinPermission() : JoinPermission.PUBLIC;
+    }
+
+    /**
+     * 公开主页路由：支持不可变 authUid（纯数字，优先）或 username（兼容旧链接）。
+     * 用户名可改，authUid 永不变——改名后旧 username 链接失效，authUid 链接永久有效。
+     */
+    private User resolveUser(String identifier) {
+        User user = null;
+        if (identifier != null && identifier.matches("\\d+")) {
+            user = userRepository.findByAuthUid(Long.parseLong(identifier)).orElse(null);
+        }
+        if (user == null) {
+            user = userRepository.findByUsernameIgnoreCase(identifier).orElse(null);
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在");
+        }
+        return user;
     }
 
     /** 查询称号定义的颜色（未定义时返回默认色） */

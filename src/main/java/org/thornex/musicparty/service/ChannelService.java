@@ -41,6 +41,7 @@ public class ChannelService {
     private final MusicProviderFactory musicProviderFactory;
     private final ChannelAccessService channelAccessService;
     private final ChannelSessionManager channelSessionManager;
+    private final org.thornex.musicparty.util.CryptoUtil crypto;
 
     private final Map<Long, Set<Long>> channelMembers = new ConcurrentHashMap<>();
 
@@ -290,6 +291,8 @@ public class ChannelService {
     public String getChannelConfig(Long channelId, String key) {
         return channelConfigRepository.findByChannelIdAndConfigKey(channelId, key)
                 .map(ChannelConfig::getConfigValue)
+                // M3：cookie 配置加密存储，读取时解密供内部使用
+                .map(v -> isCookieKey(key) ? crypto.decrypt(v) : v)
                 .orElse(null);
     }
 
@@ -298,6 +301,16 @@ public class ChannelService {
         checkChannelAdmin(channelId, userId);
         saveChannelConfig(channelId, key, value);
         log.info("频道配置更新: 频道 {}, key={}", channelId, key);
+    }
+
+    private boolean isCookieKey(String key) {
+        return key != null && key.startsWith("cookie_");
+    }
+
+    /** 掩码后的频道 Cookie（用于管理界面展示） */
+    private String maskChannelCookie(Long channelId, String key) {
+        String raw = getChannelConfig(channelId, key);
+        return org.thornex.musicparty.util.CryptoUtil.mask(raw);
     }
 
     @Transactional
@@ -316,18 +329,20 @@ public class ChannelService {
                         .configKey(key)
                         .build());
 
-        config.setConfigValue(value);
+        // M3：cookie 配置加密存储
+        config.setConfigValue(isCookieKey(key) ? crypto.encrypt(value) : value);
         channelConfigRepository.save(config);
     }
 
     public Map<String, Object> getChannelFullConfig(Long channelId) {
         Channel channel = getChannel(channelId);
 
+        // M3：Cookie 对频道管理员掩码展示（不泄露完整凭证）
         Map<String, Object> cookies = new HashMap<>();
-        cookies.put("netease", getChannelConfig(channelId, "cookie_netease"));
-        cookies.put("qq", getChannelConfig(channelId, "cookie_qq"));
-        cookies.put("kugou", getChannelConfig(channelId, "cookie_kugou"));
-        cookies.put("bilibili", getChannelConfig(channelId, "cookie_bilibili"));
+        cookies.put("netease", maskChannelCookie(channelId, "cookie_netease"));
+        cookies.put("qq", maskChannelCookie(channelId, "cookie_qq"));
+        cookies.put("kugou", maskChannelCookie(channelId, "cookie_kugou"));
+        cookies.put("bilibili", maskChannelCookie(channelId, "cookie_bilibili"));
 
         Map<String, Object> sources = new HashMap<>();
         for (String platform : List.of("netease", "qq", "kugou", "bilibili")) {

@@ -91,8 +91,10 @@ public class NeteaseMusicProvider implements MusicProvider {
     @Override
     public Mono<List<Music>> searchMusic(String keyword, int limit, int offset) {
         return webClient.get()
-                .uri(getBaseUrl() + "/cloudsearch?keywords={keyword}&limit={limit}&offset={offset}&cookie={cookie}",
-                        keyword, limit, offset, getCookie())
+                .uri(getBaseUrl() + "/cloudsearch?keywords={keyword}&limit={limit}&offset={offset}",
+                        keyword, limit, offset)
+                // M3：Cookie 走请求头，避免进入 URL（ncm-api 代理访问日志）
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("search", response))
                 .bodyToMono(JsonNode.class)
@@ -109,7 +111,8 @@ public class NeteaseMusicProvider implements MusicProvider {
     @Override
     public Mono<Music> getSongDetail(String musicId) {
         return webClient.get()
-                .uri(getBaseUrl() + "/song/detail?ids={musicId}&cookie={cookie}", musicId, getCookie())
+                .uri(getBaseUrl() + "/song/detail?ids={musicId}", musicId)
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("get song detail", response))
                 .bodyToMono(JsonNode.class)
@@ -126,8 +129,9 @@ public class NeteaseMusicProvider implements MusicProvider {
     public Mono<Map<String, Object>> getAlbumSongs(String albumName) {
         if (albumName == null || albumName.isBlank()) return Mono.just(emptyAlbum());
         return webClient.get()
-                .uri(getBaseUrl() + "/cloudsearch?keywords={keyword}&type=10&limit=5&cookie={cookie}",
-                        albumName, getCookie())
+                .uri(getBaseUrl() + "/cloudsearch?keywords={keyword}&type=10&limit=5",
+                        albumName)
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("search album", response))
                 .bodyToMono(JsonNode.class)
@@ -140,7 +144,8 @@ public class NeteaseMusicProvider implements MusicProvider {
                     if (albumId.isEmpty()) return Mono.just(emptyAlbum());
                     log.info("Album [{}] resolved to id={}", albumNameResolved, albumId);
                     return webClient.get()
-                            .uri(getBaseUrl() + "/album?id={id}&cookie={cookie}", albumId, getCookie())
+                            .uri(getBaseUrl() + "/album?id={id}", albumId)
+                            .header("Cookie", getCookie())
                             .retrieve()
                             .onStatus(HttpStatusCode::isError, response -> handleApiError("album songs", response))
                             .bodyToMono(JsonNode.class)
@@ -221,9 +226,10 @@ public class NeteaseMusicProvider implements MusicProvider {
     private Mono<String> requestPlayUrl(String musicId, String level, String cookie) {
         currentUsedCookie.set(cookie);
         log.info("getPlayUrl: musicId={} level={} cookie=[{}...]", musicId, level,
-                cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie));
+                maskCookie(cookie));
         return webClient.get()
-                .uri(getBaseUrl() + "/song/url/v1?id={musicId}&level={level}&cookie={cookie}", musicId, level, cookie)
+                .uri(getBaseUrl() + "/song/url/v1?id={musicId}&level={level}", musicId, level)
+                .header("Cookie", cookie)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> {
                     cookiePoolService.markFailure(PLATFORM, cookie, "播放请求失败 HTTP " + response.statusCode().value());
@@ -263,7 +269,8 @@ public class NeteaseMusicProvider implements MusicProvider {
             return Mono.just(-1);
         }
         return webClient.get()
-                .uri(getBaseUrl() + "/user/account?cookie={cookie}", cookie)
+                .uri(getBaseUrl() + "/user/account")
+                .header("Cookie", cookie)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("user account", response))
                 .bodyToMono(JsonNode.class)
@@ -285,7 +292,8 @@ public class NeteaseMusicProvider implements MusicProvider {
     @Override
     public Mono<List<Playlist>> getUserPlaylists(String userId) {
         return webClient.get()
-                .uri(getBaseUrl() + "/user/playlist?uid={userId}&cookie={cookie}", userId, getCookie())
+                .uri(getBaseUrl() + "/user/playlist?uid={userId}", userId)
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("get user playlists", response))
                 .bodyToMono(JsonNode.class)
@@ -305,8 +313,9 @@ public class NeteaseMusicProvider implements MusicProvider {
     @Override
     public Mono<List<Music>> getPlaylistSongs(String playlistId, int offset, int limit) {
         return webClient.get()
-                .uri(getBaseUrl() + "/playlist/track/all?id={playlistId}&limit={limit}&offset={offset}&cookie={cookie}",
-                        playlistId, limit, offset, getCookie())
+                .uri(getBaseUrl() + "/playlist/track/all?id={playlistId}&limit={limit}&offset={offset}",
+                        playlistId, limit, offset)
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("get playlist tracks", response))
                 .bodyToMono(JsonNode.class)
@@ -323,7 +332,8 @@ public class NeteaseMusicProvider implements MusicProvider {
     @Override
     public Mono<List<UserSearchResult>> searchUsers(String keyword) {
         return webClient.get()
-                .uri(getBaseUrl() + "/search?keywords={keyword}&type=1002&cookie={cookie}", keyword, getCookie())
+                .uri(getBaseUrl() + "/search?keywords={keyword}&type=1002", keyword)
+                .header("Cookie", getCookie())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, response -> handleApiError("user search", response))
                 .bodyToMono(JsonNode.class)
@@ -375,5 +385,12 @@ public class NeteaseMusicProvider implements MusicProvider {
     public String getCookie() {
         // 池模式：每次请求轮换取下一个
         return cookiePoolService.next(PLATFORM);
+    }
+
+    /** M3：日志只打掩码（前 4 + *** + 后 4） */
+    static String maskCookie(String cookie) {
+        if (cookie == null || cookie.isBlank()) return "";
+        if (cookie.length() <= 12) return "****";
+        return cookie.substring(0, 4) + "***" + cookie.substring(cookie.length() - 4);
     }
 }

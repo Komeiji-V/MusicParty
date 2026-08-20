@@ -36,6 +36,7 @@ public class CookiePoolService {
     private final CookiePoolItemRepository repository;
     private final AppProperties appProperties;
     private final SystemConfigRepository systemConfigRepository;
+    private final org.thornex.musicparty.util.CryptoUtil crypto;
 
     private final Map<String, CopyOnWriteArrayList<CookiePoolItem>> pool = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> roundRobin = new ConcurrentHashMap<>();
@@ -87,22 +88,68 @@ public class CookiePoolService {
         seedFromEnv("kugou", appProperties.getMusicApi().getKugou().getCookie());
         seedFromEnv("bilibili", appProperties.getMusicApi().getBilibili().getSessdata());
 
+        // 一次性迁移：存量明文 cookie 加密落库（幂等，enc: 前缀跳过）
+        for (CookiePoolItem item : repository.findAll()) {
+            if (item.getCookie() != null && !item.getCookie().startsWith("enc:")) {
+                item.setCookie(crypto.encrypt(item.getCookie()));
+                repository.save(item);
+                log.info("Cookie pool [{}]: migrated plaintext cookie #{} to encrypted storage", item.getPlatform(), item.getId());
+            }
+        }
+
         for (CookiePoolItem item : repository.findAll()) {
             if (item.isEnabled()) {
-                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(item);
+                // 池内存对象用解密后的明文副本（DB 实体保持密文）
+                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(toMemoryItem(item));
             }
         }
         pool.forEach((platform, list) ->
                 log.info("Cookie pool [{}]: {} enabled cookie(s), selected={}", platform, list.size(), selectedIds.get(platform)));
     }
 
+    /** DB 实体（cookie 为密文）→ 内存明文副本（非 JPA 托管，避免脏写回库） */
+    private CookiePoolItem toMemoryItem(CookiePoolItem db) {
+        return CookiePoolItem.builder()
+                .id(db.getId())
+                .platform(db.getPlatform())
+                .cookie(crypto.decrypt(db.getCookie()))
+                .enabled(db.isEnabled())
+                .failCount(db.getFailCount())
+                .errorMark(db.isErrorMark())
+                .errorReason(db.getErrorReason())
+                .lastErrorAt(db.getLastErrorAt())
+                .vipType(db.getVipType())
+                .vipCheckedAt(db.getVipCheckedAt())
+                .addedBy(db.getAddedBy())
+                .createdAt(db.getCreatedAt())
+                .build();
+    }
+
+    /** 把内存明文对象同步回 DB（cookie 加密存储） */
+    private void persistPoolItem(CookiePoolItem mem) {
+        repository.findById(mem.getId()).ifPresent(db -> {
+            db.setCookie(crypto.encrypt(mem.getCookie()));
+            db.setEnabled(mem.isEnabled());
+            db.setFailCount(mem.getFailCount());
+            db.setErrorMark(mem.isErrorMark());
+            db.setErrorReason(mem.getErrorReason());
+            db.setLastErrorAt(mem.getLastErrorAt());
+            db.setVipType(mem.getVipType());
+            db.setVipCheckedAt(mem.getVipCheckedAt());
+            repository.save(db);
+        });
+    }
+
     private void seedFromEnv(String platform, String cookie) {
         if (cookie == null || cookie.isBlank() || "YOUR_NETEASE_COOKIE_STRING_HERE".equals(cookie)) return;
-        if (repository.findByPlatformAndCookie(platform, cookie).isEmpty()) {
+        // 兼容存量明文记录：加密值与明文值都查一遍
+        boolean exists = !repository.findByPlatformAndCookie(platform, crypto.encrypt(cookie)).isEmpty()
+                || !repository.findByPlatformAndCookie(platform, cookie).isEmpty();
+        if (!exists) {
             CookiePoolItem item = CookiePoolItem.builder()
-                    .platform(platform).cookie(cookie).enabled(true).addedBy(null).build();
+                    .platform(platform).cookie(crypto.encrypt(cookie)).enabled(true).addedBy(null).build();
             repository.save(item);
-            log.info("Seeded {} cookie from environment into pool", platform);
+            log.info("Seeded {} cookie from environment into pool (encrypted)", platform);
         }
     }
 
@@ -183,12 +230,10 @@ public class CookiePoolService {
             item.setErrorMark(true);
             item.setErrorReason(reason != null ? reason : "调用失败");
             item.setLastErrorAt(java.time.LocalDateTime.now());
+            persistPoolItem(item);
             if (fails >= FAIL_THRESHOLD) {
-                item.setEnabled(false);
-                repository.save(item);
                 log.warn("Cookie pool [{}]: cookie disabled after {} consecutive failures ({})", platform, fails, reason);
             } else {
-                repository.save(item);
                 log.warn("Cookie pool [{}]: cookie failure {} / {} ({})", platform, fails, FAIL_THRESHOLD, reason);
             }
         });
@@ -210,7 +255,7 @@ public class CookiePoolService {
                     item.setErrorMark(false);
                     item.setErrorReason(null);
                     item.setLastErrorAt(null);
-                    repository.save(item);
+                    persistPoolItem(item);
                 });
     }
 
@@ -224,10 +269,10 @@ public class CookiePoolService {
             item.setFailCount(0);
             if (!item.isEnabled()) {
                 item.setEnabled(true);
-                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(item);
             }
             repository.save(item);
         });
+        reload(); // 池内重新加载（含解密），保证启用状态一致
     }
 
     /** 保存 VIP 检测结果 */
@@ -240,9 +285,11 @@ public class CookiePoolService {
         });
     }
 
-    /** 返回某平台的全部 Cookie（含禁用的，管理用） */
+    /** 返回某平台的全部 Cookie（含禁用的，管理用；cookie 为解密明文） */
     public List<CookiePoolItem> list(String platform) {
-        return new ArrayList<>(repository.findByPlatformOrderByIdAsc(platform));
+        return repository.findByPlatformOrderByIdAsc(platform).stream()
+                .map(this::toMemoryItem)
+                .toList();
     }
 
     /** 返回某平台当前启用的全部 Cookie（用于请求内逐个重试；频道选中优先级由调用方按 channelId 处理） */
@@ -255,10 +302,11 @@ public class CookiePoolService {
     @Transactional
     public CookiePoolItem add(String platform, String cookie, Long addedBy) {
         CookiePoolItem item = CookiePoolItem.builder()
-                .platform(platform).cookie(cookie).enabled(true).failCount(0).addedBy(addedBy).build();
+                .platform(platform).cookie(crypto.encrypt(cookie)).enabled(true).failCount(0).addedBy(addedBy).build();
         item = repository.save(item);
-        pool.computeIfAbsent(platform, k -> new CopyOnWriteArrayList<>()).add(item);
-        return item;
+        CookiePoolItem mem = toMemoryItem(item);
+        pool.computeIfAbsent(platform, k -> new CopyOnWriteArrayList<>()).add(mem);
+        return mem;
     }
 
     @Transactional
@@ -276,11 +324,7 @@ public class CookiePoolService {
             item.setEnabled(enabled);
             if (enabled) item.setFailCount(0);
             repository.save(item);
-            CopyOnWriteArrayList<CookiePoolItem> list = pool.get(item.getPlatform());
-            if (list != null) list.remove(item);
-            if (enabled) {
-                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(item);
-            }
         });
+        reload(); // 池内重新加载（含解密）
     }
 }

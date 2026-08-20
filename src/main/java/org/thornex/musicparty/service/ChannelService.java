@@ -44,10 +44,20 @@ public class ChannelService {
 
     private final Map<Long, Set<Long>> channelMembers = new ConcurrentHashMap<>();
 
+    // L1：密码 join 失败限流（按 频道+用户 计数，窗口 60 秒内 10 次失败后拒绝）
+    private static final int JOIN_FAIL_MAX = 10;
+    private static final long JOIN_FAIL_WINDOW_MS = 60_000L;
+    private final Map<String, java.util.ArrayDeque<Long>> joinFailures = new ConcurrentHashMap<>();
+
     @Transactional
     public Channel createChannel(String name, String description, String password, String joinPermission, Long creatorId) {
         User creator = userRepository.findById(creatorId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        // L1：密码最短长度（防弱口令暴力枚举面）
+        if (password != null && !password.isEmpty() && password.length() < 4) {
+            throw new RuntimeException("频道密码至少 4 位");
+        }
 
         JoinPermission permission = resolveJoinPermission(joinPermission, password);
         boolean hasPassword = password != null && !password.isEmpty();
@@ -99,6 +109,10 @@ public class ChannelService {
             if (password.isEmpty()) {
                 channel.setPasswordHash(null);
             } else {
+                // L1：密码最短长度
+                if (password.length() < 4) {
+                    throw new RuntimeException("频道密码至少 4 位");
+                }
                 channel.setPasswordHash(passwordEncoder.encode(password));
             }
         }
@@ -151,8 +165,13 @@ public class ChannelService {
 
         switch (permission) {
             case PASSWORD -> {
+                // L1：先查失败限流（防止密码暴力枚举）
+                if (!allowJoinAttempt(channelId, userId)) {
+                    return Map.of("success", false, "message", "尝试次数过多，请稍后再试");
+                }
                 if (channel.getPasswordHash() != null && !channel.getPasswordHash().isEmpty()
                         && (password == null || !passwordEncoder.matches(password, channel.getPasswordHash()))) {
+                    recordJoinFailure(channelId, userId);
                     return Map.of("success", false, "message", "密码错误");
                 }
             }
@@ -173,11 +192,40 @@ public class ChannelService {
 
         channelMembers.computeIfAbsent(channelId, k -> ConcurrentHashMap.newKeySet()).add(userId);
         channelAccessService.grantAccess(userId, channelId);
+        joinFailures.remove(failKey(channelId, userId)); // 加入成功，清空失败计数
         User user = userRepository.findById(userId).orElse(null);
         String username = user != null ? user.getUsername() : "未知用户";
         log.info("用户 {} 加入了频道 {}", username, channel.getName());
 
         return Map.of("success", true, "message", "加入成功");
+    }
+
+    /** 密码 join 失败计数（窗口滑动） */
+    private boolean allowJoinAttempt(Long channelId, Long userId) {
+        String key = failKey(channelId, userId);
+        synchronized (joinFailures) {
+            java.util.ArrayDeque<Long> q = joinFailures.computeIfAbsent(key, k -> new java.util.ArrayDeque<>());
+            long now = System.currentTimeMillis();
+            while (!q.isEmpty() && now - q.peekFirst() > JOIN_FAIL_WINDOW_MS) {
+                q.pollFirst();
+            }
+            if (q.size() >= JOIN_FAIL_MAX) {
+                return false;
+            }
+            return true;
+        }
+    }
+
+    private void recordJoinFailure(Long channelId, Long userId) {
+        String key = failKey(channelId, userId);
+        synchronized (joinFailures) {
+            java.util.ArrayDeque<Long> q = joinFailures.computeIfAbsent(key, k -> new java.util.ArrayDeque<>());
+            q.addLast(System.currentTimeMillis());
+        }
+    }
+
+    private String failKey(Long channelId, Long userId) {
+        return channelId + ":" + userId;
     }
 
     public void leaveChannel(Long channelId, Long userId) {

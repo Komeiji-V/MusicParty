@@ -53,6 +53,7 @@ public class PublicController {
     private final NeteaseMusicProvider neteaseMusicProvider;
     private final org.thornex.musicparty.service.api.QQMusicProvider qqMusicProvider;
     private final org.thornex.musicparty.service.api.KugouMusicProvider kugouMusicProvider;
+    private final org.thornex.musicparty.util.IpRateLimiter ipRateLimiter;
 
     @GetMapping("/config")
     public Map<String, Object> config() {
@@ -151,7 +152,12 @@ public class PublicController {
 
     /** 按专辑名获取专辑歌曲列表（公开主页"专辑歌曲"展示与跳转）；返回 {id, name, songs} */
     @GetMapping("/album-songs/{platform}/{name}")
-    public Mono<Map<String, Object>> albumSongs(@PathVariable String platform, @PathVariable String name) {
+    public Mono<Map<String, Object>> albumSongs(@PathVariable String platform, @PathVariable String name,
+                                                jakarta.servlet.http.HttpServletRequest request) {
+        // M7：该接口未认证即可触发对第三方音乐 API 的多次外呼，按 IP 限流防打爆代理与第三方限额
+        if (!ipRateLimiter.allow(request.getRemoteAddr(), 20, 60_000L)) {
+            return Mono.just(Map.of("error", "请求过于频繁，请稍后再试"));
+        }
         if ("netease".equalsIgnoreCase(platform)) {
             return neteaseMusicProvider.getAlbumSongs(name);
         }

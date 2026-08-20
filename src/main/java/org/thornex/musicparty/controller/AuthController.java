@@ -18,9 +18,14 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final org.thornex.musicparty.util.IpRateLimiter ipRateLimiter;
 
-    public AuthController(AuthService authService) {
+    private static final int AUTH_RATE_MAX = 30;        // 每 IP 每窗口最多请求数
+    private static final long AUTH_RATE_WINDOW_MS = 60_000L;
+
+    public AuthController(AuthService authService, org.thornex.musicparty.util.IpRateLimiter ipRateLimiter) {
         this.authService = authService;
+        this.ipRateLimiter = ipRateLimiter;
     }
 
     /**
@@ -28,7 +33,11 @@ public class AuthController {
      * 成功返回 { token, user: { id, username, role } }
      */
     @PostMapping("/sso")
-    public ResponseEntity<?> sso(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> sso(@RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest request) {
+        // M7：SSO 交换按 IP 限流，防止被循环调用打爆认证中心
+        if (!ipRateLimiter.allow(clientIp(request), AUTH_RATE_MAX, AUTH_RATE_WINDOW_MS)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", "请求过于频繁，请稍后再试"));
+        }
         try {
             User user = authService.sso(body.get("token"));
             return ResponseEntity.ok(Map.of(
@@ -50,7 +59,11 @@ public class AuthController {
      * 刷新 token：转发认证中心 /api/refresh（轮换制）。
      */
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest request) {
+        // M7：刷新按 IP 限流
+        if (!ipRateLimiter.allow(clientIp(request), AUTH_RATE_MAX, AUTH_RATE_WINDOW_MS)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", "请求过于频繁，请稍后再试"));
+        }
         try {
             Map<String, Object> result = authService.refresh(body.get("refreshToken"));
             return ResponseEntity.ok(Map.of(
@@ -91,5 +104,10 @@ public class AuthController {
             return principal;
         }
         return null;
+    }
+
+    private String clientIp(jakarta.servlet.http.HttpServletRequest request) {
+        // 直连部署，不信任可伪造的 X-Forwarded-For
+        return request.getRemoteAddr();
     }
 }

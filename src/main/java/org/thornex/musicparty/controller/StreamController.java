@@ -24,8 +24,12 @@ public class StreamController {
     private final StreamTokenService streamTokenService;
     private final org.thornex.musicparty.config.AppProperties appProperties;
 
+    // M7：每 IP 并发流连接上限（防止单账号/单 IP 刷满 Tomcat 线程池）
+    private static final int MAX_CONNECTIONS_PER_IP = 10;
+    private final Map<String, java.util.concurrent.atomic.AtomicInteger> connectionsByIp = new java.util.concurrent.ConcurrentHashMap<>();
+
     @GetMapping(value = "/radio/stream", produces = "audio/mpeg")
-    public void streamAudio(HttpServletRequest request, HttpServletResponse response, @RequestParam(name = "key", required = false) String key) {
+    public void streamAudio(HttpServletRequest request, HttpServletResponse response, @RequestParam(name = "key", required = false) String key) throws IOException {
         if (!liveStreamService.isEnabled()) {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             return;
@@ -36,6 +40,23 @@ public class StreamController {
             return;
         }
 
+        String remoteAddr = request.getRemoteAddr();
+        java.util.concurrent.atomic.AtomicInteger cnt = connectionsByIp.computeIfAbsent(remoteAddr, k -> new java.util.concurrent.atomic.AtomicInteger());
+        if (cnt.incrementAndGet() > MAX_CONNECTIONS_PER_IP) {
+            cnt.decrementAndGet();
+            response.setStatus(429);
+            return;
+        }
+        try {
+            doStream(request, response, remoteAddr);
+        } finally {
+            if (cnt.decrementAndGet() <= 0) {
+                connectionsByIp.remove(remoteAddr, cnt);
+            }
+        }
+    }
+
+    private void doStream(HttpServletRequest request, HttpServletResponse response, String remoteAddr) throws IOException {
         response.setContentType("audio/mpeg");
         response.setHeader("Transfer-Encoding", "chunked");
         response.setHeader("Connection", "keep-alive");
@@ -44,7 +65,6 @@ public class StreamController {
         response.setHeader("Pragma", "no-cache");
         response.setHeader("Expires", "0");
 
-        String remoteAddr = getClientIp(request);
         OutputStream os = null;
         try {
             os = response.getOutputStream();
@@ -87,20 +107,5 @@ public class StreamController {
             result.put("expiresIn", "24h（闲置 4h）");
         }
         return result;
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 处理多级代理情况，取第一个非 unknown 的 IP
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
     }
 }

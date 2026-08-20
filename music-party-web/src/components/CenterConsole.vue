@@ -90,7 +90,7 @@
     <div
         class="z-30 flex items-center justify-center pointer-events-auto flex-shrink-0"
         :class="player.lyricStyle === 'full' ? 'fixed top-1/2 -translate-y-1/2' : 'relative'"
-        :style="player.lyricStyle === 'full' ? { left: 'calc(50vw - 304px)' } : {}"
+        :style="player.lyricStyle === 'full' ? { left: 'calc(50vw - 464px)' } : {}"
     >
       <div class="relative">
         <div v-if="player.nowPlaying?.enqueuedById" class="absolute -top-4 right-0 text-xs font-mono text-accent flex items-center gap-2 z-20 select-none">
@@ -205,8 +205,8 @@
       <div
           v-if="player.lyricStyle === 'full' && !lyricHidden"
           ref="lyricAreaRef"
-          class="z-30 flex flex-col w-[min(520px,38vw)] flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden fixed top-1/2 -translate-y-1/2"
-          :style="{ left: 'calc(50vw + 16px)' }"
+          class="z-30 flex flex-col flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden fixed top-1/2 -translate-y-1/2"
+          :style="{ left: 'calc(50vw - 144px)', width: 'min(520px, 38vw, calc(50vw - 176px))' }"
       >
         <!-- 标题行：LYRIC_SYSTEM + 翻译/罗马音开关 + 收起按钮 -->
         <div class="pointer-events-auto flex items-center gap-2 mb-1 flex-shrink-0">
@@ -394,9 +394,11 @@ const slotLines = computed(() => {
   return slots;
 });
 
-// 歌词框宽 = min(520px, 38vw)：随窗口缩放；<200px（约窗口 <530px，含移动端）时
-// 整个歌词区（含 compact）自动隐藏，避免放不下
-const lyricHidden = computed(() => Math.min(520, width.value * 0.38) < 200);
+// 歌词框宽 = min(520px, 38vw, 主区域可用 50vw-176px)：随窗口缩放且不盖右侧
+// 侧栏（在线成员/播放队列）；<280px（约窗口 <910px）时整个歌词区（含 compact）
+// 自动隐藏，避免放不下
+const lyricHidden = computed(() =>
+  Math.min(520, width.value * 0.38, width.value / 2 - 176) < 280);
 
 // 超宽检测：歌词区容器过窄（放不下大字歌词）时自动回退默认样式且禁止切换；
 // 长歌词行已支持换行（break-words），正常宽度容器不受影响

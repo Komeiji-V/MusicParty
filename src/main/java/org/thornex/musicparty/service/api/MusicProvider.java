@@ -25,6 +25,18 @@ public interface MusicProvider {
 
     Mono<String> getLyric(String musicId);
 
+    /**
+     * 结构化歌词（含翻译/罗马音，供歌词面板切换显示）。
+     * 返回 { lrc, tlyric, romalrc }（LRC 格式字符串，无则空串）。
+     * 默认实现只返回原文；支持翻译/罗马音的平台（网易云）自行覆盖。
+     */
+    default Mono<java.util.Map<String, String>> getLyricFull(String musicId) {
+        return getLyric(musicId).map(lrc -> {
+            String s = lrc == null ? "" : lrc;
+            return java.util.Map.of("lrc", s, "tlyric", "", "romalrc", "");
+        });
+    }
+
     Mono<List<UserSearchResult>> searchUsers(String keyword);
 
     Mono<Music> getPlayableMusic(String musicId);

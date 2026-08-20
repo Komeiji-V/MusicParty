@@ -7,6 +7,9 @@ export const musicApi = {
     // 获取歌词
     getLyric: (platform, songId) => client.get(`/api/music/lyric/${platform}/${songId}`),
 
+    // 结构化歌词（原文 + 翻译 + 罗马音）
+    getLyricFull: (platform, songId) => client.get(`/api/music/lyric-full/${platform}/${songId}`),
+
     // 获取用户歌单
     getUserPlaylists: (platform, userId) => client.get(`/api/user/playlists/${platform}/${userId}`),
 

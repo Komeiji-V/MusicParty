@@ -84,4 +84,10 @@ public class ApiController {
     public Mono<String> getLyric(@PathVariable String platform, @PathVariable String musicId) {
         return getService(platform).getLyric(musicId);
     }
+
+    /** 结构化歌词（含翻译/罗马音），供歌词面板切换显示 */
+    @GetMapping("/music/lyric-full/{platform}/{musicId}")
+    public Mono<java.util.Map<String, String>> getLyricFull(@PathVariable String platform, @PathVariable String musicId) {
+        return getService(platform).getLyricFull(musicId);
+    }
 }

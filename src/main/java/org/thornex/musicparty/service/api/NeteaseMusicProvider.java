@@ -367,6 +367,28 @@ public class NeteaseMusicProvider implements MusicProvider {
                 .onErrorReturn("");
     }
 
+    /** 结构化歌词：原文 + 翻译（tlyric）+ 罗马音（romalrc），网易云接口原生返回 */
+    @Override
+    public Mono<java.util.Map<String, String>> getLyricFull(String musicId) {
+        return webClient.get()
+                .uri(getBaseUrl() + "/lyric?id={id}", musicId)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(json -> java.util.Map.of(
+                        "lrc", lyricField(json, "lrc"),
+                        "tlyric", lyricField(json, "tlyric"),
+                        "romalrc", lyricField(json, "romalrc")
+                ))
+                .onErrorReturn(java.util.Map.of("lrc", "", "tlyric", "", "romalrc", ""));
+    }
+
+    private static String lyricField(JsonNode json, String field) {
+        if (json.has(field) && json.get(field).has("lyric")) {
+            return json.get(field).get("lyric").asText();
+        }
+        return "";
+    }
+
     @Override
     public boolean isEnabled() {
         return appProperties.getMusicApi().getNetease().isEnabled();

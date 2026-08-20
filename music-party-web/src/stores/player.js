@@ -24,6 +24,11 @@ export const usePlayerStore = defineStore('player', () => {
     const isSkipLocked = ref(false);
     const isPlayModeLocked = ref(false);
     const lyricText = ref('');
+    // 歌词面板：结构化歌词（原文/翻译/罗马音）+ 显示模式与开关
+    const lyricFull = ref({ lrc: '', tlyric: '', romalrc: '' });
+    const lyricStyle = ref('compact'); // 'compact'=原左下角 | 'full'=封面左移+右侧滚动
+    const showTranslation = ref(false);
+    const showRoman = ref(false);
     const connected = ref(false);
     const isLoading = ref(false);
     const streamListenerCount = ref(0);
@@ -217,11 +222,16 @@ export const usePlayerStore = defineStore('player', () => {
     // 歌词监听
     watch(() => nowPlaying.value?.music?.id, async (newId) => {
         lyricText.value = '';
+        lyricFull.value = { lrc: '', tlyric: '', romalrc: '' };
         if (!newId) return;
         try {
             const platform = nowPlaying.value.music.platform;
-            const data = await musicApi.getLyric(platform, newId);
+            const [data, full] = await Promise.all([
+                musicApi.getLyric(platform, newId),
+                musicApi.getLyricFull(platform, newId).catch(() => ({ lrc: '', tlyric: '', romalrc: '' }))
+            ]);
             lyricText.value = data || '';
+            lyricFull.value = full || { lrc: data || '', tlyric: '', romalrc: '' };
         } catch (e) {
             console.error("Lyrics Error", e);
         }
@@ -230,6 +240,7 @@ export const usePlayerStore = defineStore('player', () => {
     return {
         nowPlaying, queue, isPaused, playMode, isShuffle, isRepeatOne, isFairShuffle, allowOfflineShuffle, config,
         isPauseLocked, isSkipLocked, isPlayModeLocked, connected, isLoading, lyricText,
+        lyricFull, lyricStyle, showTranslation, showRoman,
         localProgress, isBuffering, isErrorState, streamListenerCount, streamActive,
         isVoteSkipEnabled, voteSkipThreshold, voteSkipWaitTime, currentVotes, eligibleUsers,
         connect, tryReconnect, reconnectForChannel, leaveChannel, getCurrentProgress, syncState, // 导出 syncState

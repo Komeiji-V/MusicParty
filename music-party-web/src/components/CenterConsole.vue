@@ -1,6 +1,10 @@
 // ... existing code ...
 <template>
-  <div class="relative w-full h-full flex items-center justify-center overflow-hidden">
+  <!-- full 样式：整体 justify-start 让封面左移，为右侧歌词让位 -->
+  <div
+      class="relative w-full h-full flex items-center overflow-hidden transition-all duration-500"
+      :class="player.lyricStyle === 'full' ? 'justify-start pl-[8%] md:pl-[12%]' : 'justify-center'"
+  >
 
     <!-- LAYER 0: 静态背景层 (最底层) -->
     <div class="absolute inset-0 z-0 pointer-events-none">
@@ -31,15 +35,43 @@
 
     <!-- LAYER 2: 信息层 (歌词 & 日志) -->
     <div class="absolute inset-0 z-20 pointer-events-none">
-      <!-- 左侧：同步歌词 -->
-      <div class="absolute font-mono transition-all duration-300
-                  inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2
-                  md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80
-      ">
-        <div class="hidden md:block text-xs text-accent/80 mb-1 tracking-widest border-b border-accent/30 pb-1 w-16">
-          LYRIC_SYSTEM
+      <!-- 歌词：compact=左下角 / full=封面右侧滚动 -->
+      <div class="absolute font-mono transition-all duration-300" :class="lyricWrapClass">
+        <!-- 标题行：LYRIC_SYSTEM + 翻译/罗马音开关 + 样式切换按钮 -->
+        <div class="pointer-events-auto flex items-center gap-2 mb-1 min-h-0 flex-shrink-0">
+          <div class="hidden md:block text-xs text-accent/80 tracking-widest border-b border-accent/30 pb-1">
+            LYRIC_SYSTEM
+          </div>
+          <!-- 翻译开关（仅网易云翻译可用时显示） -->
+          <button
+              v-if="player.lyricStyle === 'full' && player.lyricFull.tlyric"
+              @click="player.showTranslation = !player.showTranslation"
+              class="px-1.5 py-0.5 text-[10px] font-bold border rounded-sm transition-colors"
+              :class="player.showTranslation ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
+          >翻译</button>
+          <!-- 罗马音开关（仅网易云罗马音可用时显示） -->
+          <button
+              v-if="player.lyricStyle === 'full' && player.lyricFull.romalrc"
+              @click="player.showRoman = !player.showRoman"
+              class="px-1.5 py-0.5 text-[10px] font-bold border rounded-sm transition-colors"
+              :class="player.showRoman ? 'bg-accent text-white border-accent' : 'text-medical-400 border-medical-300 hover:text-accent hover:border-accent'"
+          >罗马音</button>
+          <!-- 样式切换 -->
+          <button
+              @click="toggleLyricStyle"
+              :title="player.lyricStyle === 'compact' ? '展开歌词（封面左移+滚动）' : '收起歌词（原样式）'"
+              class="ml-auto flex items-center justify-center w-6 h-6 text-medical-400 hover:text-accent transition-colors border border-medical-200 hover:border-accent rounded-sm bg-white/60 backdrop-blur-sm"
+          >
+            <Maximize2 v-if="player.lyricStyle === 'compact'" class="w-3.5 h-3.5" />
+            <Minimize2 v-else class="w-3.5 h-3.5" />
+          </button>
         </div>
-        <div class="w-full space-y-1 text-xs font-normal text-medical-900 leading-tight mix-blend-normal md:mix-blend-multiply md:text-medical-600 flex flex-col md:justify-end min-h-0">
+
+        <!-- compact：左下角当前行（原样式） -->
+        <div
+            v-if="player.lyricStyle === 'compact'"
+            class="w-full space-y-1 text-xs font-normal text-medical-900 leading-tight mix-blend-normal md:mix-blend-multiply md:text-medical-600 flex flex-col md:justify-end min-h-0"
+        >
           <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center md:justify-start">
             <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
           </div>
@@ -56,6 +88,40 @@
             </span>
           </div>
         </div>
+
+        <!-- full：封面右侧滚动歌词（当前行居中高亮 + 上下渐变） -->
+        <div
+            v-else
+            class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden"
+        >
+          <!-- 上下渐变遮罩 -->
+          <div class="absolute top-0 inset-x-0 h-10 bg-gradient-to-b from-medical-50 to-transparent z-10 pointer-events-none"></div>
+          <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-medical-50 to-transparent z-10 pointer-events-none"></div>
+          <div
+              ref="lyricScrollRef"
+              class="h-full overflow-y-auto lyric-scroll py-10"
+          >
+            <div
+                v-if="parsedLyrics.length === 0"
+                class="h-full flex items-center justify-center opacity-50"
+            >
+              <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
+            </div>
+            <div
+                v-for="(line, i) in parsedLyrics"
+                v-else
+                :key="line.time"
+                class="leading-8 transition-all duration-300"
+                :class="i === currentLineIndex
+                  ? 'text-medical-900 scale-105 font-bold origin-left'
+                  : 'text-medical-400 scale-100'"
+            >
+              <div>{{ line.text }}</div>
+              <div v-if="player.showTranslation && line.trans" class="text-[10px] leading-4 text-accent/80 font-normal">{{ line.trans }}</div>
+              <div v-if="player.showRoman && line.roman" class="text-[10px] leading-4 text-medical-300 italic font-normal">{{ line.roman }}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 右侧：伪系统日志 -->
@@ -66,7 +132,7 @@
       </div>
     </div>
 
-    <!-- LAYER 3: 核心实体层 (封面) -->
+    <!-- LAYER 3: 核心实体层 (封面)；左移由根 flex 控制 -->
     <div class="relative z-30 flex items-center justify-center pointer-events-auto">
       <div class="relative">
         <div v-if="player.nowPlaying?.enqueuedById" class="absolute -top-4 right-0 text-xs font-mono text-accent flex items-center gap-2 z-20 select-none">
@@ -184,10 +250,10 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useUserStore } from '../stores/user';
 import {useEventListener, useWindowSize} from '@vueuse/core';
-import { parseLyrics } from '../utils/parser';
+import { parseLyrics, parseLyricsFull } from '../utils/parser';
 import { AudioVisualizer } from '../logic/AudioVisualizer';
 import { useUiStore } from '../stores/ui';
-import { Heart, Activity, Zap } from 'lucide-vue-next';
+import { Heart, Activity, Zap, Maximize2, Minimize2 } from 'lucide-vue-next';
 
 const userStore = useUserStore();
 const player = usePlayerStore();
@@ -269,6 +335,38 @@ const activeLines = computed(() => {
 watch(() => player.lyricText, (newVal) => {
   parsedLyrics.value = parseLyrics(newVal);
   currentLineIndex.value = -1;
+});
+
+// 结构化歌词（翻译/罗马音）：优先用 lyric-full 数据，行对象含 trans/roman
+watch(() => player.lyricFull, (full) => {
+  if (full && full.lrc) {
+    parsedLyrics.value = parseLyricsFull(full.lrc, full.tlyric, full.romalrc);
+  }
+  currentLineIndex.value = -1;
+}, { deep: true });
+
+// === 歌词样式切换（compact=左下角 | full=封面左移+右侧滚动） ===
+const lyricScrollRef = ref(null);
+const LYRIC_LINE_H = 32; // 滚动歌词每行固定高度 px（leading-8）
+
+const toggleLyricStyle = () => {
+  player.lyricStyle = player.lyricStyle === 'compact' ? 'full' : 'compact';
+};
+
+// full 样式：当前行滚动居中
+watch(currentLineIndex, (idx) => {
+  const el = lyricScrollRef.value;
+  if (!el || idx < 0) return;
+  const target = idx * LYRIC_LINE_H - el.clientHeight / 2 + LYRIC_LINE_H / 2;
+  el.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+});
+
+// 歌词容器定位：compact 左下角 / full 封面右侧（移动端底部全宽）
+const lyricWrapClass = computed(() => {
+  if (player.lyricStyle === 'full') {
+    return 'inset-x-0 bottom-7 flex flex-col h-56 pb-2 md:inset-auto md:top-1/2 md:-translate-y-1/2 md:left-[38%] md:right-6 md:h-[58vh]';
+  }
+  return 'inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80';
 });
 
 // === 系统日志逻辑 (Realtime) ===
@@ -392,3 +490,19 @@ onUnmounted(() => {
   clearInterval(updateInterval);
 });
 </script>
+<style scoped>
+.lyric-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.lyric-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+.lyric-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lyric-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+</style>

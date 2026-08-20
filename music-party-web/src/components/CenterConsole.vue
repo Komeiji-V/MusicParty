@@ -35,8 +35,11 @@
 
     <!-- LAYER 2: 信息层 (compact 歌词 & 日志) -->
     <div class="absolute inset-0 z-20 pointer-events-none">
-      <!-- compact 歌词：左下角（原样式） -->
-      <div class="absolute font-mono transition-all duration-300 inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80">
+      <!-- compact 歌词：左下角（原样式）；full 模式或窗口过窄时隐藏 -->
+      <div
+          v-if="player.lyricStyle === 'compact' && !lyricHidden"
+          class="absolute font-mono transition-all duration-300 inset-x-0 bottom-7 flex flex-col items-center justify-end h-64 pb-2 md:inset-auto md:bottom-8 md:left-10 md:items-start md:justify-end md:h-auto md:w-80"
+      >
         <!-- 标题行：LYRIC_SYSTEM + 样式切换按钮 -->
         <div class="pointer-events-auto flex items-center gap-2 mb-1 min-h-0 flex-shrink-0">
           <div class="hidden md:block text-xs text-accent/80 tracking-widest border-b border-accent/30 pb-1">
@@ -195,7 +198,7 @@
 
       <!-- full 歌词区：与封面同排（间距固定 ml，缩放不变）、贴紧封面右侧 -->
       <div
-          v-if="player.lyricStyle === 'full'"
+          v-if="player.lyricStyle === 'full' && !lyricHidden"
           ref="lyricAreaRef"
           class="relative z-30 flex flex-col ml-4 md:ml-8 w-[55vw] md:w-[520px] flex-shrink-0 h-[224px] md:h-[280px] overflow-hidden"
       >
@@ -226,25 +229,34 @@
         </div>
         <!-- Apple Music 风格聚焦歌词：当前行大字靠左、前后行小字淡出（行原地切换，不滚动） -->
         <div class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden">
-          <div class="absolute inset-0 flex flex-col justify-center items-start gap-2 md:gap-3">
+          <div class="absolute inset-0 flex flex-col justify-center items-stretch gap-2 md:gap-3">
             <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center w-full">
               <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
             </div>
+            <!-- 固定 5 个槽位：行不增删，仅内容/字号/透明度过渡（平滑无跳动） -->
             <div
                 v-else
-                v-for="(line, i) in activeWindow"
-                :key="line.time"
-                class="w-full text-left px-1 transition-all duration-500 leading-snug break-words"
-                :class="line._center
-                  ? 'text-2xl md:text-[30px] font-black text-medical-900'
-                  : line._near
-                    ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
-                    : 'text-xs md:text-sm text-medical-400 opacity-40'"
+                v-for="(slot, i) in slotLines"
+                :key="i"
+                class="w-full flex items-center transition-all duration-500"
+                :class="slot
+                  ? (slot._center ? 'h-auto py-0.5' : 'h-10 md:h-11')
+                  : 'h-10 md:h-11'"
             >
-              <!-- 罗马音在歌词上方（黑色） -->
-              <div v-if="line._center && player.showRoman && line.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-1">{{ line.roman }}</div>
-              <div>{{ line.text }}</div>
-              <div v-if="line._center && player.showTranslation && line.trans" class="text-sm md:text-lg text-accent font-medium mt-1">{{ line.trans }}</div>
+              <div
+                  v-if="slot"
+                  class="w-full text-left px-1 leading-snug break-words transition-all duration-500"
+                  :class="slot._center
+                    ? 'text-2xl md:text-[30px] font-black text-medical-900'
+                    : slot._near
+                      ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
+                      : 'text-xs md:text-sm text-medical-400 opacity-40'"
+              >
+                <!-- 罗马音在歌词上方（黑色） -->
+                <div v-if="slot._center && player.showRoman && slot.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-0.5">{{ slot.roman }}</div>
+                <div>{{ slot.text }}</div>
+                <div v-if="slot._center && player.showTranslation && slot.trans" class="text-sm md:text-lg text-accent font-medium mt-0.5">{{ slot.trans }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -359,23 +371,25 @@ const toggleLyricStyle = () => {
   player.lyricStyle = player.lyricStyle === 'compact' ? 'full' : 'compact';
 };
 
-// full 样式：当前行前后各 4 行（行原地切换，不滚动；总高不超过封面）
-const activeWindow = computed(() => {
+// full 样式：固定 5 个槽位（当前行居中，前后各 2），行不增删仅内容过渡
+const slotLines = computed(() => {
   const all = parsedLyrics.value;
   if (all.length === 0) return [];
-  const idx = currentLineIndex.value;
-  const N = 4;
-  if (idx < 0) {
-    return all.slice(0, N * 2 + 1).map((l, i) => ({ ...l, _center: i === 0, _near: i === 1 }));
+  const idx = currentLineIndex.value < 0 ? 0 : currentLineIndex.value;
+  const slots = [];
+  for (let off = -2; off <= 2; off++) {
+    const li = idx + off;
+    if (li >= 0 && li < all.length) {
+      slots.push({ ...all[li], _center: off === 0, _near: Math.abs(off) === 1 });
+    } else {
+      slots.push(null); // 空槽位（保持布局稳定）
+    }
   }
-  const start = Math.max(0, idx - N);
-  const end = Math.min(all.length, idx + N + 1);
-  return all.slice(start, end).map((l, i) => ({
-    ...l,
-    _center: start + i === idx,
-    _near: Math.abs(start + i - idx) === 1
-  }));
+  return slots;
 });
+
+// 窗口过窄（<420px）：整个歌词区（含 compact）自动隐藏，避免小屏放不下
+const lyricHidden = computed(() => width.value < 420);
 
 // 超宽检测：歌词区容器过窄（放不下大字歌词）时自动回退默认样式且禁止切换；
 // 长歌词行已支持换行（break-words），正常宽度容器不受影响
@@ -393,6 +407,9 @@ const measureLyricFit = () => {
   }
 };
 watch(() => player.lyricStyle, () => { nextTick(measureLyricFit); });
+watch(lyricHidden, (hidden) => {
+  if (hidden && player.lyricStyle === 'full') player.lyricStyle = 'compact';
+});
 onMounted(() => { nextTick(measureLyricFit); });
 
 

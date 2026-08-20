@@ -156,7 +156,8 @@ public class PublicController {
                                                 jakarta.servlet.http.HttpServletRequest request) {
         // M7：该接口未认证即可触发对第三方音乐 API 的多次外呼，按 IP 限流防打爆代理与第三方限额
         if (!ipRateLimiter.allow(request.getRemoteAddr(), 20, 60_000L)) {
-            return Mono.just(Map.of("error", "请求过于频繁，请稍后再试"));
+            return Mono.error(new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"));
         }
         if ("netease".equalsIgnoreCase(platform)) {
             return neteaseMusicProvider.getAlbumSongs(name);

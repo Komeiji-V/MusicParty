@@ -322,6 +322,7 @@ import { useAuthStore } from '../stores/auth'
 import { useChannelStore } from '../stores/channel'
 import { useToast } from '../composables/useToast'
 import client from '../api/client'
+import { sanitizeHtml } from '../utils/sanitize'
 import InfoModal from '../components/InfoModal.vue'
 import ToastNotification from '../components/ToastNotification.vue'
 
@@ -359,7 +360,8 @@ const aboutHtml = computed(() => {
         .replace('{{siteTitle}}', uiStore.siteTitle)
         .replace('{{authorName}}', uiStore.authorName)
   // 换行转 <br/>：纯文本换行生效；HTML 标签（<b>/<i>/<a>/<p> 等）原样保留
-  return text.replace(/\n/g, '<br/>')
+  // M6：渲染前经过白名单消毒（该内容可由管理员在后台写入，防存储型 XSS）
+  return sanitizeHtml(text.replace(/\n/g, '<br/>'))
 })
 
 // 频道大厅：默认收起，点击按钮弹出频道列表弹窗

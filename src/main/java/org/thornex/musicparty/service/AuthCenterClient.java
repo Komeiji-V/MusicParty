@@ -7,6 +7,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.thornex.musicparty.config.AppProperties;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -42,7 +43,8 @@ public class AuthCenterClient {
                     .onStatus(status -> status.is4xxClientError(),
                             response -> response.bodyToMono(String.class).map(RuntimeException::new))
                     .bodyToMono(Map.class)
-                    .block();
+                    // L5：认证中心挂起时不能无限占用线程
+                    .block(Duration.ofSeconds(5));
         } catch (Exception e) {
             log.debug("Auth center token verification failed: {}", e.getMessage());
             return null;
@@ -61,7 +63,8 @@ public class AuthCenterClient {
                     .bodyValue(Map.of("refresh_token", refreshToken))
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block();
+                    // L5：认证中心挂起时不能无限占用线程
+                    .block(Duration.ofSeconds(5));
         } catch (Exception e) {
             log.debug("Auth center refresh failed: {}", e.getMessage());
             return null;

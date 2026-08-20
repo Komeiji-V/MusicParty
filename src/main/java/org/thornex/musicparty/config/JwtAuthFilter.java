@@ -70,7 +70,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 log.error("JWT validation failed for {} {}: {}", request.getMethod(), request.getRequestURI(), e.toString());
             }
         } else {
-            log.warn("No auth token for {}", request.getRequestURI());
+            // L4：匿名请求是常态（公开接口/静态资源），WARN 会刷日志盘，降为 DEBUG
+            log.debug("No auth token for {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

@@ -47,6 +47,7 @@ public class MusicPlayerService {
     private final AppProperties appProperties;
     private final ChannelSessionManager channelSessionManager;
     private final org.thornex.musicparty.repository.LikeRecordRepository likeRecordRepository;
+    private final org.thornex.musicparty.service.ChannelService channelService;
 
     private final AtomicBoolean isStreamActive = new AtomicBoolean(false);
     private final Map<Long, ChannelState> channelStates = new ConcurrentHashMap<>();
@@ -58,7 +59,8 @@ public class MusicPlayerService {
                               ApplicationEventPublisher eventPublisher,
                               AppProperties appProperties,
                               ChannelSessionManager channelSessionManager,
-                              org.thornex.musicparty.repository.LikeRecordRepository likeRecordRepository) {
+                              org.thornex.musicparty.repository.LikeRecordRepository likeRecordRepository,
+                              org.thornex.musicparty.service.ChannelService channelService) {
         this.providerFactory = providerFactory;
         this.userService = userService;
         this.localCacheService = localCacheService;
@@ -68,6 +70,7 @@ public class MusicPlayerService {
         this.appProperties = appProperties;
         this.channelSessionManager = channelSessionManager;
         this.likeRecordRepository = likeRecordRepository;
+        this.channelService = channelService;
     }
 
     @PostConstruct
@@ -653,6 +656,19 @@ public class MusicPlayerService {
 
     public synchronized void topSong(String queueId, String sessionId, Long channelId) {
         ChannelState cs = getOrCreateChannelState(channelId);
+        // L2：置顶仅限自己的歌曲或频道管理员（防止任意成员反复置顶他人歌曲打断队列）
+        Optional<MusicQueueItem> existing = queueManager.getItem(queueId, channelId);
+        Optional<User> operator = userService.getUser(sessionId);
+        if (existing.isPresent() && operator.isPresent()) {
+            User op = operator.get();
+            boolean isOwner = existing.get().enqueuedBy().token().equals(op.getToken());
+            boolean isAdmin = channelService.isChannelAdmin(channelId, op.getUserId());
+            if (!isOwner && !isAdmin) {
+                log.warn("Top rejected: {} attempted to top song enqueued by {} in channel {}",
+                        op.getName(), existing.get().enqueuedBy().name(), channelId);
+                return;
+            }
+        }
         TopResult result = queueManager.top(queueId, cs.playMode.get(), channelId);
         if (result != TopResult.NONE) {
             log.info("Song topped ({}) request by {} in channel {}", result, getUserName(sessionId), channelId);

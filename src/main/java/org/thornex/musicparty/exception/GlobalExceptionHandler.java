@@ -15,10 +15,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Object> handleApiRequestException(ApiRequestException ex) {
         // For failures related to external APIs, return 502 Bad Gateway
         Map<String, Object> body = Map.of(
-                "message", ex.getMessage(),
+                "message", sanitizeMessage(ex.getMessage()),
                 "status", HttpStatus.BAD_GATEWAY.value()
         );
         return new ResponseEntity<>(body, HttpStatus.BAD_GATEWAY);
+    }
+
+    /** L5：外部 API 错误原文可能携带敏感信息（cookie/token 等），统一脱敏：过滤 + 截断 */
+    private String sanitizeMessage(String msg) {
+        if (msg == null || msg.isBlank()) return "外部服务错误";
+        String m = msg.replaceAll("(?i)(cookie|token|authorization|password|session|accesskey)[=:][^\\s,;\"']{4,}", "$1=***");
+        return m.length() > 200 ? m.substring(0, 200) + "..." : m;
     }
 
     @ExceptionHandler(ResponseStatusException.class)

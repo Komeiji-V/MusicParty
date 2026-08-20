@@ -343,15 +343,20 @@ public class KugouMusicProvider implements MusicProvider {
                     String mid = "1";
                     String uuid = "1";
 
-                    String params = "?cmd=200&hash=" + musicId
-                            + "&timelength=" + timeLength
-                            + "&clientver=" + clientVer
-                            + "&dfid=" + dfid
-                            + "&mid=" + mid
-                            + "&uuid=" + uuid;
+                    // L3：UriComponentsBuilder 组装（musicId 为用户可控的 hash，杜绝参数注入）
+                    String params = org.springframework.web.util.UriComponentsBuilder.fromUriString(LRC_URL)
+                            .queryParam("cmd", "200")
+                            .queryParam("hash", musicId)
+                            .queryParam("timelength", timeLength)
+                            .queryParam("clientver", clientVer)
+                            .queryParam("dfid", dfid)
+                            .queryParam("mid", mid)
+                            .queryParam("uuid", uuid)
+                            .build(false)
+                            .toUriString();
 
                     return webClient.get()
-                            .uri(LRC_URL + params)
+                            .uri(params)
                             .header("Referer", "https://www.kugou.com/")
                             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                             .retrieve()
@@ -367,15 +372,21 @@ public class KugouMusicProvider implements MusicProvider {
                                     String accesskey = candidates.get(0).path("accesskey").asText();
                                     long duration = candidates.get(0).path("duration").asLong();
 
-                                    String dlParams = "?id=" + id
-                                            + "&accesskey=" + accesskey
-                                            + "&fmt=krc&charset=utf8&kind=1&clientver=" + clientVer
-                                            + "&dfid=" + dfid
-                                            + "&mid=" + mid
-                                            + "&uuid=" + uuid;
+                                    String dlParams = org.springframework.web.util.UriComponentsBuilder.fromUriString(LRC_DOWNLOAD_URL)
+                                            .queryParam("id", id)
+                                            .queryParam("accesskey", accesskey)
+                                            .queryParam("fmt", "krc")
+                                            .queryParam("charset", "utf8")
+                                            .queryParam("kind", "1")
+                                            .queryParam("clientver", clientVer)
+                                            .queryParam("dfid", dfid)
+                                            .queryParam("mid", mid)
+                                            .queryParam("uuid", uuid)
+                                            .build(false)
+                                            .toUriString();
 
                                     return webClient.get()
-                                            .uri(LRC_DOWNLOAD_URL + dlParams)
+                                            .uri(dlParams)
                                             .header("Referer", "https://www.kugou.com/")
                                             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                                             .retrieve()

@@ -62,6 +62,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // L5：安全响应头（CSP / HSTS / X-Frame-Options / nosniff）
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; " +
+                                "img-src 'self' data: http: https:; " +
+                                "media-src 'self' blob: http: https:; " +
+                                "style-src 'self' 'unsafe-inline'; " +
+                                "script-src 'self'; " +
+                                "connect-src 'self' ws: wss:; " +
+                                "font-src 'self' data:; " +
+                                "object-src 'none'; " +
+                                "base-uri 'self'; " +
+                                "frame-ancestors 'none'"))
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+                        .frameOptions(frame -> frame.deny()))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");

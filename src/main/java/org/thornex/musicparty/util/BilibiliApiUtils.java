@@ -42,7 +42,16 @@ public class BilibiliApiUtils {
      * 🟢 核心方法：一次请求获取 CID 和 视频详情
      */
     public static Mono<BilibiliVideoInfo> getVideoInfo(String bvid, WebClient webClient, String baseUrl, String sessdata) {
-        return buildRequest(baseUrl + "/x/web-interface/view?bvid=" + bvid, sessdata, webClient)
+        // L3：bvid 白名单校验 + UriComponentsBuilder 组装，杜绝参数注入
+        if (bvid == null || !bvid.matches("^BV[0-9A-Za-z]{10}$")) {
+            return Mono.error(new ApiRequestException("Invalid bvid format"));
+        }
+        String uri = org.springframework.web.util.UriComponentsBuilder.fromUriString(baseUrl)
+                .path("/x/web-interface/view")
+                .queryParam("bvid", bvid)
+                .build(false)
+                .toUriString();
+        return buildRequest(uri, sessdata, webClient)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .handle((jsonNode, sink) -> {

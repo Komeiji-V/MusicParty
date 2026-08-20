@@ -257,7 +257,7 @@ public class KugouMusicProvider implements MusicProvider {
         ensureConfigured();
         currentUsedCookie.set(cookie);
         log.info("getPlayUrl(kugou): musicId={} cookie=[{}...]", musicId,
-                cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie));
+                org.thornex.musicparty.util.CryptoUtil.mask(cookie));
         String hash = musicId;
         String albumAudioId = "0";
         if (musicId.contains("|")) {
@@ -289,7 +289,7 @@ public class KugouMusicProvider implements MusicProvider {
                         throw new ApiRequestException("播放地址为空（Cookie 无权限），尝试下一个");
                     }
                     log.info("getPlayUrl(kugou) result: musicId={} cookie=[{}...] url=OK", musicId,
-                            cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie));
+                            org.thornex.musicparty.util.CryptoUtil.mask(cookie));
                     return url;
                 })
                 .onErrorResume(e -> {

@@ -37,17 +37,58 @@ public class CookieController {
     private final UserRepository userRepository;
     private final UserTitleRepository userTitleRepository;
     private final MusicProviderFactory musicProviderFactory;
+    private final org.thornex.musicparty.util.CryptoUtil crypto;
+    private final org.thornex.musicparty.util.IpRateLimiter ipRateLimiter;
+
+    // H1/M3：提交限流（IP+用户双键，5 次/小时）与输入约束
+    private static final int SUBMIT_RATE_MAX = 5;
+    private static final long SUBMIT_RATE_WINDOW_MS = 3_600_000L;
+    private static final int COOKIE_MAX_LENGTH = 4096;
+    private static final List<String> ALLOWED_PLATFORMS = List.of("netease", "qq", "kugou", "bilibili");
+
+    /** H1：存量明文 submissions 一次性迁移加密（幂等，enc: 前缀跳过） */
+    @jakarta.annotation.PostConstruct
+    public void migratePlaintextSubmissions() {
+        try {
+            int migrated = 0;
+            for (CookieSubmission s : submissionRepository.findAll()) {
+                String c = s.getCookie();
+                if (c != null && !c.isBlank() && !c.startsWith("enc:")) {
+                    s.setCookie(crypto.encrypt(c));
+                    submissionRepository.save(s);
+                    migrated++;
+                }
+            }
+            if (migrated > 0) {
+                log.info("迁移了 {} 条存量明文 Cookie 提交为加密存储", migrated);
+            }
+        } catch (Exception e) {
+            log.error("存量 Cookie 提交迁移失败", e);
+        }
+    }
 
     // ============ 用户提交 ============
 
     @PostMapping("/api/cookies/submit")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> submit(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> submit(@RequestBody Map<String, String> body, jakarta.servlet.http.HttpServletRequest request) {
         Long userId = SecurityConfig.getCurrentUserId();
         String platform = body.get("platform");
         String cookie = body.get("cookie");
         if (platform == null || platform.isBlank() || cookie == null || cookie.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "平台与 Cookie 不能为空"));
+        }
+        // M3：platform 白名单 + 长度上限（防畸形输入/超长凭证刷库）
+        if (!ALLOWED_PLATFORMS.contains(platform.toLowerCase())) {
+            return ResponseEntity.badRequest().body(Map.of("message", "不支持的平台"));
+        }
+        if (cookie.length() > COOKIE_MAX_LENGTH) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Cookie 内容过长"));
+        }
+        // M3：IP + 用户双键限流（防批量灌垃圾凭证拖垮审核队列）
+        String rateKey = "submit:" + request.getRemoteAddr() + ":" + userId;
+        if (!ipRateLimiter.allow(rateKey, SUBMIT_RATE_MAX, SUBMIT_RATE_WINDOW_MS)) {
+            return ResponseEntity.status(429).body(Map.of("message", "提交过于频繁，请稍后再试"));
         }
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
@@ -61,7 +102,8 @@ public class CookieController {
                 .userId(userId)
                 .username(user.getUsername())
                 .platform(platform)
-                .cookie(cookie)
+                // H1：审核凭证明文入库 → 加密存储
+                .cookie(crypto.encrypt(cookie))
                 .status(CookieSubmission.Status.PENDING)
                 .build();
         submissionRepository.save(sub);
@@ -220,7 +262,9 @@ public class CookieController {
         List<Map<String, Object>> list = submissionRepository.findByStatusOrderByCreatedAtAsc(st).stream()
                 .map(s -> Map.<String, Object>of(
                         "id", s.getId(), "username", s.getUsername(), "platform", s.getPlatform(),
-                        "cookie", mask(s.getCookie()), "createdAt", s.getCreatedAt()))
+                        // H1：存量明文兼容 + 新数据密文 → 统一解密后掩码展示
+                        "cookie", org.thornex.musicparty.util.CryptoUtil.mask(crypto.decrypt(s.getCookie())),
+                        "createdAt", s.getCreatedAt()))
                 .toList();
         return ResponseEntity.ok(list);
     }
@@ -233,10 +277,11 @@ public class CookieController {
             return ResponseEntity.badRequest().body(Map.of("message", "提交不存在或已处理"));
         }
         // 1. 汇入 Cookie 池
-        cookiePoolService.add(sub.getPlatform(), sub.getCookie(), sub.getUserId());
+        cookiePoolService.add(sub.getPlatform(), crypto.decrypt(sub.getCookie()), sub.getUserId());
         // 2. 授予「音源提供者」称号
         grantTitle(sub.getUserId(), TITLE_COOKIE_PROVIDER, "Cookie 审核通过（" + sub.getPlatform() + "）");
-        // 3. 更新状态
+        // 3. 更新状态；H1：审核完成后清除明文凭证（仅保留审计行：谁/何时/哪个平台）
+        sub.setCookie(null);
         sub.setStatus(CookieSubmission.Status.APPROVED);
         sub.setReviewedBy(SecurityConfig.getCurrentUserId());
         sub.setReviewedAt(LocalDateTime.now());
@@ -253,6 +298,8 @@ public class CookieController {
             return ResponseEntity.badRequest().body(Map.of("message", "提交不存在或已处理"));
         }
         sub.setStatus(CookieSubmission.Status.REJECTED);
+        // H1：驳回也清除凭证（驳回的 Cookie 往往仍有效，不能明文留存）
+        sub.setCookie(null);
         sub.setReviewedBy(SecurityConfig.getCurrentUserId());
         sub.setReviewedAt(LocalDateTime.now());
         submissionRepository.save(sub);

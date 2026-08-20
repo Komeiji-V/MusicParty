@@ -35,12 +35,11 @@ app:
     url: ${AUTH_CENTER_URL:http://localhost:8000}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8848,http://localhost:8080}
+  # M7：SUPER_ADMIN 白名单（逗号分隔 authUid）；非空时仅白名单内用户可成为超管（防 auth-center 侧角色被滥用）
+  super-admin-auth-uids: ${SUPER_ADMIN_AUTH_UIDS:}
   jwt:
     secret: ${JWT_SECRET:}
     expiration-ms: ${JWT_EXPIRATION:86400000}
-  super-admin:
-    username: ${SUPER_ADMIN_USERNAME:}
-    password: ${SUPER_ADMIN_PASSWORD:}
   music-api:
     base-url: ${BASE_URL:http://localhost:8080}
     author-name: ${APP_AUTHOR_NAME:ThorNex}
@@ -75,9 +74,3 @@ app:
       max-message-length: ${CHAT_MAX_LENGTH:200}
     cache:
       max-size: ${CACHE_MAX_SIZE:1GB}
-    auth:
-      rate-limit:
-        enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
-        max-attempts: ${AUTH_MAX_ATTEMPTS:5}
-        window-seconds: ${AUTH_WINDOW_SECONDS:60}
-        block-duration-seconds: ${AUTH_BLOCK_DURATION:300}

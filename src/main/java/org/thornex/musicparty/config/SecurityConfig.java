@@ -41,17 +41,24 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource(AppProperties appProperties) {
         CorsConfiguration config = new CorsConfiguration();
         // CORS 白名单（M2）：不再回显任意 Origin + 凭据；默认仅本机开发端口
-        List<String> origins = Arrays.stream(appProperties.getCors().getAllowedOrigins().split(","))
+        List<String> origins = new java.util.ArrayList<>(Arrays.stream(appProperties.getCors().getAllowedOrigins().split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .toList();
+                .toList());
+        // SSO 新协议：auth-center 登录页跨域 POST /api/auth/sso，其 origin 自动加入白名单
+        String authOrigin = extractOrigin(appProperties.getAuthCenter().getUrl());
+        if (authOrigin != null && !origins.contains(authOrigin)) {
+            origins.add(authOrigin);
+        }
         config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/public/**", config);
+        // SSO 登录回跳（auth-center → 小站）需要跨域 POST
+        source.registerCorsConfiguration("/api/auth/**", config);
         return source;
     }
 

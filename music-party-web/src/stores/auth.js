@@ -25,29 +25,35 @@ export const useAuthStore = defineStore('auth', () => {
     return `${authCenterUrl.value}/login?redirect=${encodeURIComponent(origin + redirectPath)}`
   }
 
-  // 处理认证中心回跳 ?token= 参数
+  // 处理认证中心登录回跳：auth-center 登录页已跨域 POST /api/auth/sso
+  // 并种入 60s 一次性 music_sso_token cookie，这里收 token → localStorage → 清除 cookie
   async function handleCallback() {
-    const q = new URLSearchParams(window.location.search)
-    const t = q.get('token')
+    const m = document.cookie.match(/(?:^|;\s*)music_sso_token=([^;]*)/)
+    if (!m) return false
+    const t = m[1] ? decodeURIComponent(m[1]) : ''
+    // 兜底：无论后续是否成功，cookie 必须清除（一次性搬运通道）
+    document.cookie = 'music_sso_token=; Max-Age=0; path=/'
     if (!t) return false
-    q.delete('token')
-    const cleanUrl = window.location.pathname + (q.toString() ? '?' + q.toString() : '')
-    window.history.replaceState({}, '', cleanUrl)
 
-    const res = await fetch('/api/auth/sso', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: t })
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.message || '登录失败')
+    token.value = t
+    localStorage.setItem('mp_token', t)
+
+    // 验证 token 有效性并刷新用户信息（含 authUid）；无效则按未登录处理
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${t}` }
+      })
+      if (res.ok) {
+        user.value = await res.json()
+        return true
+      }
+    } catch (e) {
+      console.error('SSO token verification failed', e)
     }
-    const data = await res.json()
-    token.value = data.token
-    user.value = data.user
-    localStorage.setItem('mp_token', data.token)
-    return true
+    token.value = null
+    user.value = null
+    localStorage.removeItem('mp_token')
+    return false
   }
 
   async function fetchMe() {

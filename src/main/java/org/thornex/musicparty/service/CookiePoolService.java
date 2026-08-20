@@ -100,7 +100,13 @@ public class CookiePoolService {
         for (CookiePoolItem item : repository.findAll()) {
             if (item.isEnabled()) {
                 // 池内存对象用解密后的明文副本（DB 实体保持密文）
-                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(toMemoryItem(item));
+                CookiePoolItem mem = toMemoryItem(item);
+                // M6：解密失败（返回空串）的条目跳过入池，避免空 Cookie 参与轮询
+                if (mem.getCookie() == null || mem.getCookie().isBlank()) {
+                    log.error("Cookie pool [{}]: 条目 #{} 解密失败或内容为空，已跳过入池", item.getPlatform(), item.getId());
+                    continue;
+                }
+                pool.computeIfAbsent(item.getPlatform(), k -> new CopyOnWriteArrayList<>()).add(mem);
             }
         }
         pool.forEach((platform, list) ->
@@ -311,11 +317,10 @@ public class CookiePoolService {
 
     @Transactional
     public void remove(Long id) {
-        repository.findById(id).ifPresent(item -> {
-            repository.delete(item);
-            CopyOnWriteArrayList<CookiePoolItem> list = pool.get(item.getPlatform());
-            if (list != null) list.remove(item);
-        });
+        repository.findById(id).ifPresent(repository::delete);
+        // M5：DB 实体（密文）与内存池副本（明文）引用不同，list.remove 永不命中——
+        // 必须按 id 移除并重载，否则被删凭证仍留在内存池继续使用（吊销失效）
+        reload();
     }
 
     @Transactional

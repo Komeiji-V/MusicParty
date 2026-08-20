@@ -242,7 +242,7 @@ public class NeteaseMusicProvider implements MusicProvider {
                         String url = data.get(0).path("url").asText();
                         boolean freeTrial = data.get(0).hasNonNull("freeTrialInfo");
                         log.info("getPlayUrl result: musicId={} cookie=[{}...] url={} freeTrial={}", musicId,
-                                cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie),
+                                org.thornex.musicparty.util.CryptoUtil.mask(cookie),
                                 url == null || url.isEmpty() ? "EMPTY" : "OK(" + url.length() + "chars)", freeTrial);
                         if (url == null || url.isEmpty()) {
                             // 空 URL 通常表示该 Cookie 无权播放（VIP 限制）

@@ -21,7 +21,7 @@ onMounted(async () => {
   try {
     const handled = await auth.handleCallback()
     if (handled) {
-      router.push('/')
+      // 已从 music_sso_token cookie 收到凭证：auth-center 已跳回目标页，无需再跳转
       return
     }
     auth.fetchMe()

@@ -386,7 +386,7 @@ public class QQMusicProvider implements MusicProvider {
         ensureConfigured();
         currentUsedCookie.set(cookie);
         log.info("getPlayUrl(qq): musicId={} cookie=[{}...]", musicId,
-                cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie));
+                org.thornex.musicparty.util.CryptoUtil.mask(cookie));
 
         ObjectNode urlParam = objectMapper.createObjectNode();
         ArrayNode mids = objectMapper.createArrayNode();
@@ -413,7 +413,7 @@ public class QQMusicProvider implements MusicProvider {
                         JsonNode sip = urlData.path("sip");
                         if (!purl.isEmpty() && sip.isArray() && sip.size() > 0) {
                             log.info("getPlayUrl(qq) result: musicId={} cookie=[{}...] url=OK", musicId,
-                                    cookie == null ? "" : (cookie.length() > 24 ? cookie.substring(0, 24) : cookie));
+                                    org.thornex.musicparty.util.CryptoUtil.mask(cookie));
                             return sip.get(0).asText() + purl;
                         }
                     }

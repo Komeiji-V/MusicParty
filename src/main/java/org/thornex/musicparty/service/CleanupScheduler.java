@@ -18,6 +18,7 @@ public class CleanupScheduler {
     private static final long ONE_HOUR_MS = 3_600_000L;
 
     private final SystemConfigService systemConfigService;
+    private final org.thornex.musicparty.repository.CookieSubmissionRepository cookieSubmissionRepository;
 
     private final AtomicLong lastRunAt = new AtomicLong(0L);
 
@@ -54,6 +55,8 @@ public class CleanupScheduler {
                     case "history" -> result.put("history", systemConfigService.cleanupPlayHistory(olderThanDays, null));
                     case "queue" -> result.put("queue", systemConfigService.cleanupQueueItems(null));
                     case "cache" -> result.put("cache", systemConfigService.cleanupCache(olderThanDays, null));
+                    case "rejected_cookies" -> result.put("rejected_cookies",
+                            cleanupRejectedCookieSubmissions(olderThanDays));
                     default -> log.warn("跳过未知的定时清理目标: {}", target);
                 }
             } catch (Exception e) {
@@ -61,5 +64,23 @@ public class CleanupScheduler {
             }
         }
         log.info("定时清理完成: {}", result);
+    }
+
+    /** H1：清理超期的已驳回 Cookie 提交（驳回凭证不留存） */
+    private int cleanupRejectedCookieSubmissions(int olderThanDays) {
+        try {
+            java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minusDays(Math.max(1, olderThanDays));
+            List<org.thornex.musicparty.entity.CookieSubmission> expired =
+                    cookieSubmissionRepository.findByStatusOrderByCreatedAtAsc(org.thornex.musicparty.entity.CookieSubmission.Status.REJECTED)
+                            .stream()
+                            .filter(s -> s.getCreatedAt() != null && s.getCreatedAt().isBefore(cutoff))
+                            .toList();
+            cookieSubmissionRepository.deleteAll(expired);
+            log.info("清理了 {} 条超期已驳回的 Cookie 提交", expired.size());
+            return expired.size();
+        } catch (Exception e) {
+            log.error("清理已驳回 Cookie 提交失败", e);
+            return -1;
+        }
     }
 }

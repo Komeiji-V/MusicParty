@@ -12,6 +12,8 @@ public class AppProperties {
     private AuthCenterConfig authCenter = new AuthCenterConfig();
     private MusicApiConfig musicApi = new MusicApiConfig();
     private CorsConfig cors = new CorsConfig();
+    /** M7：SUPER_ADMIN 白名单（逗号分隔的 authUid）；非空时仅白名单内用户可成为超管 */
+    private String superAdminAuthUids = "";
 
     @Data
     public static class CorsConfig {
@@ -46,7 +48,6 @@ public class AppProperties {
         private PlayerConfig player = new PlayerConfig();
         private ChatConfig chat = new ChatConfig();
         private CacheConfig cache = new CacheConfig();
-        private AuthConfig auth = new AuthConfig();
     }
 
     @Data
@@ -74,14 +75,6 @@ public class AppProperties {
     @Data
     public static class CacheConfig {
         private org.springframework.util.unit.DataSize maxSize = org.springframework.util.unit.DataSize.ofGigabytes(1);
-    }
-
-    @Data
-    public static class AuthConfig {
-        private boolean rateLimitEnabled = true;
-        private int maxAttempts = 5;
-        private int windowSeconds = 60;
-        private int blockDurationSeconds = 300;
     }
 
     @Data

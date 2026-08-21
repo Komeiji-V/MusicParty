@@ -251,7 +251,7 @@
             >
               <!-- 交叉淡入淡出：旧文字上滑淡出 + 新文字下滑淡入同时进行，无空白闪烁；
                    中心槽位用放大/缩小动画（scale 不参与布局 → 换行点固定，无转行跳变） -->
-              <Transition :name="slot && slot._center ? 'lyric-swap-center' : 'lyric-swap-side'">
+              <Transition :name="slot && slot._center ? 'lyric-swap-center' : 'lyric-swap-side'" mode="out-in">
                 <div
                     v-if="slot"
                     :key="slot.time"
@@ -565,19 +565,15 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* 歌词行交叉切换：旧文字上滑淡出 + 新文字下滑淡入同时进行（无空白闪烁）。
-   leave 元素 absolute 脱离文档流（盖在新文字上淡出），
-   否则新旧元素在 flex 槽位并排会把新文字挤到右侧再弹回。
+/* 歌词行串行切换（mode="out-in"）：旧文字先淡出完毕，新文字再淡入。
+   串行下新旧元素不同时存在 → 无 flex 并排问题，leave 保留在文档流中
+   撑住槽位高度（不塌陷）。
    scale 不参与布局 → 行宽/换行点固定，放大动画不会引发转行跳变。
    transform-origin: left center → 左对齐点不动，无横向位移 */
 .lyric-swap-center-enter-active,
 .lyric-swap-center-leave-active {
   transition: opacity 0.6s cubic-bezier(.22, 1, .36, 1), transform 0.6s cubic-bezier(.22, 1, .36, 1);
   transform-origin: left center;
-}
-.lyric-swap-center-leave-active {
-  position: absolute;
-  inset: 0;
 }
 .lyric-swap-center-enter-from {
   opacity: 0;
@@ -591,10 +587,6 @@ onUnmounted(() => {
 .lyric-swap-side-leave-active {
   transition: opacity 0.45s ease, transform 0.45s ease;
   transform-origin: left center;
-}
-.lyric-swap-side-leave-active {
-  position: absolute;
-  inset: 0;
 }
 .lyric-swap-side-enter-from {
   opacity: 0;

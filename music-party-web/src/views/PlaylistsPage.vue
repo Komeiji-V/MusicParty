@@ -340,6 +340,8 @@
       </div>
     </div>
   </div>
+
+    <ToastNotification />
 </template>
 
 <script setup>
@@ -357,6 +359,7 @@ import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';
 import CoverImage from '../components/CoverImage.vue';
 import PlaylistCoverModal from '../components/PlaylistCoverModal.vue';
+import ToastNotification from '../components/ToastNotification.vue';
 
 import { useConfirmStore } from '../stores/confirm'
 

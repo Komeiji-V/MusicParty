@@ -26,6 +26,9 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+    @org.springframework.beans.factory.annotation.Value("${app.frame-ancestors:}")
+    private String frameAncestors;
+
 
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtUtil jwtUtil, UserRepository userRepository) {
@@ -68,25 +71,18 @@ public class SecurityConfig {
                                                    AppProperties appProperties) throws Exception {
         // CSP connect-src：同源 + WS + 认证中心（SSO 交换为跨源 fetch，需放行其 origin）
         String authOrigin = extractOrigin(appProperties.getAuthCenter().getUrl());
-        String csp = "default-src 'self'; " +
-                "img-src 'self' data: http: https:; " +
-                "media-src 'self' blob: http: https:; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "script-src 'self'; " +
-                "connect-src 'self' ws: wss:" + (authOrigin != null ? " " + authOrigin : "") + "; " +
-                "font-src 'self' data:; " +
-                "object-src 'none'; " +
-                "base-uri 'self'; " +
-                "frame-ancestors 'none'";
+        String csp = buildCsp(authOrigin, frameAncestors);
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // L5：安全响应头（CSP / HSTS / X-Frame-Options / nosniff）
+                // 公开主页 /u/** 且配置了 FRAME_ANCESTORS 时允许 iframe 嵌入（论坛），其余页面保持禁止
                 .headers(headers -> headers
-                        .contentSecurityPolicy(cspCfg -> cspCfg.policyDirectives(csp))
                         .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
-                        .frameOptions(frame -> frame.deny()))
+                        // 默认 XFO writer 会全局写 DENY，禁用后由 PathAwareHeaderWriter 按路径管理
+                        .frameOptions(frame -> frame.disable())
+                        .addHeaderWriter(new PathAwareHeaderWriter(authOrigin, frameAncestors)))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.setContentType("application/json;charset=UTF-8");
@@ -131,7 +127,52 @@ public class SecurityConfig {
     }
 
     /** 从配置 URL 提取 origin（用于 CSP connect-src 放行认证中心） */
-    private static String extractOrigin(String url) {
+    /**
+     * 构建 CSP。frame-ancestors 默认 'none'（禁止 iframe 嵌入）；
+     * 配置了 FRAME_ANCESTORS（如论坛域名）时允许这些站点嵌入公开主页（/u/** 由 SpaRedirectController 覆盖）
+     */
+    static String buildCsp(String authOrigin, String frameAncestors) {
+        String fa = (frameAncestors == null || frameAncestors.isBlank()) ? "'none'" : frameAncestors;
+        return "default-src 'self'; " +
+                "img-src 'self' data: http: https:; " +
+                "media-src 'self' blob: http: https:; " +
+                "style-src 'self' 'unsafe-inline'; " +
+                "script-src 'self'; " +
+                "connect-src 'self' ws: wss:" + (authOrigin != null ? " " + authOrigin : "") + "; " +
+                "font-src 'self' data:; " +
+                "object-src 'none'; " +
+                "base-uri 'self'; " +
+                "frame-ancestors " + fa;
+    }
+
+    /**
+     * 按路径写 CSP/X-Frame-Options：
+     * - /u/**（公开主页）且配置了 FRAME_ANCESTORS → frame-ancestors=配置域名，不写 XFO（允许论坛 iframe 嵌入）
+     * - 其余 → frame-ancestors 'none' + X-Frame-Options DENY（保持防点击劫持）
+     */
+    static class PathAwareHeaderWriter implements org.springframework.security.web.header.HeaderWriter {
+        private final String authOrigin;
+        private final String frameAncestors;
+
+        PathAwareHeaderWriter(String authOrigin, String frameAncestors) {
+            this.authOrigin = authOrigin;
+            this.frameAncestors = frameAncestors;
+        }
+
+        @Override
+        public void writeHeaders(jakarta.servlet.http.HttpServletRequest request,
+                                 jakarta.servlet.http.HttpServletResponse response) {
+            boolean publicPage = request.getRequestURI().startsWith("/u/");
+            if (publicPage && frameAncestors != null && !frameAncestors.isBlank()) {
+                response.setHeader("Content-Security-Policy", buildCsp(authOrigin, frameAncestors));
+            } else {
+                response.setHeader("Content-Security-Policy", buildCsp(authOrigin, ""));
+                response.setHeader("X-Frame-Options", "DENY");
+            }
+        }
+    }
+
+    public static String extractOrigin(String url) {
         if (url == null || url.isBlank()) return null;
         try {
             java.net.URI uri = java.net.URI.create(url);

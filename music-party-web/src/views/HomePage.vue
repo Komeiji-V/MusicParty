@@ -153,33 +153,8 @@
             <span class="w-1.5 h-1.5 bg-accent"></span>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- 介绍文字：可在管理后台 → 站点品牌 中修改（支持 HTML） -->
-            <div class="text-sm md:text-base text-medical-700 leading-7 md:leading-8" v-html="aboutHtml"></div>
-            <div class="space-y-3">
-              <div class="flex items-start gap-3 border border-medical-100 p-3">
-                <Music2 class="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <div>
-                  <div class="text-sm font-bold text-medical-900">多音源聚合</div>
-                  <div class="text-xs text-medical-500 mt-0.5 leading-5">网易云 / B站 / QQ音乐 / 酷狗，一处搜索，全网点播</div>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 border border-medical-100 p-3">
-                <Radio class="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <div>
-                  <div class="text-sm font-bold text-medical-900">毫秒级同步</div>
-                  <div class="text-xs text-medical-500 mt-0.5 leading-5">播放进度 / 歌词 / 队列实时分发，人人同步</div>
-                </div>
-              </div>
-              <div class="flex items-start gap-3 border border-medical-100 p-3">
-                <Users class="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                <div>
-                  <div class="text-sm font-bold text-medical-900">多频道并存</div>
-                  <div class="text-xs text-medical-500 mt-0.5 leading-5">公开 / 密码 / 邀请制 / 隐藏，四种加入方式随心选</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- 关于介绍：全部内容由管理后台 → 站点品牌 → 站点简介（支持 HTML）自定义 -->
+          <div class="text-sm md:text-base text-medical-700 leading-7 md:leading-8" v-html="aboutHtml"></div>
         </div>
       </section>
 
@@ -316,7 +291,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown, Lock, UserPlus, EyeOff, ListMusic, Shield, LogOut, LogIn, UserRound, Music2, Radio, Users, DoorOpen, Headphones, X } from 'lucide-vue-next'
+import { ChevronDown, Lock, UserPlus, EyeOff, ListMusic, Shield, LogOut, LogIn, UserRound, DoorOpen, Headphones, X } from 'lucide-vue-next'
 import { useUiStore } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { useChannelStore } from '../stores/channel'

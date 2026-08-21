@@ -10,7 +10,7 @@
     <div class="absolute inset-0 z-0 pointer-events-none">
       <div class="absolute inset-0 bg-[linear-gradient(rgba(17,24,39,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[12vw] font-black text-medical-200/40 select-none whitespace-nowrap tracking-tighter blur-sm">
-        {{ uiStore.backWords.toUpperCase() }}
+        {{ (channelStore.currentChannel?.name || uiStore.backWords).toUpperCase() }}
       </div>
       <!-- 四角标记 -->
       <div class="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-medical-300"></div>
@@ -263,6 +263,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useUserStore } from '../stores/user';
+import { useChannelStore } from '../stores/channel';
 import {useEventListener, useWindowSize} from '@vueuse/core';
 import { parseLyrics, parseLyricsFull } from '../utils/parser';
 import { AudioVisualizer } from '../logic/AudioVisualizer';
@@ -271,6 +272,7 @@ import { Heart, Activity, Zap, Maximize2, Minimize2 } from 'lucide-vue-next';
 
 const userStore = useUserStore();
 const player = usePlayerStore();
+const channelStore = useChannelStore();
 const uiStore = useUiStore();
 const canvasRef = ref(null);
 const currentCover = computed(() => player.nowPlaying?.music.coverUrl);

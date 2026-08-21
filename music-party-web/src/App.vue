@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useUiStore } from './stores/ui'
@@ -14,6 +14,9 @@ import ConfirmModal from './components/ConfirmModal.vue'
 const router = useRouter()
 const auth = useAuthStore()
 const ui = useUiStore()
+
+// 网站标题跟随站点标题（管理后台可改，浏览器标签页同步）
+watch(() => ui.siteTitle, (t) => { document.title = t }, { immediate: true })
 
 onMounted(async () => {
   ui.fetchConfig()

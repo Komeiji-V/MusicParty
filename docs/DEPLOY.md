@@ -104,6 +104,11 @@ CHAT_MAX_LENGTH=200
 CACHE_MAX_SIZE=1GB
 ```
 
+> **歌单排序字段（v0.x 新增）**：`UserPlaylist` 新增 `sort_order` 列。新库自动创建；**存量库升级时 ddl-auto 加列会因 NULL 报错，需先手动执行一次**：
+> ```sql
+> ALTER TABLE playlists ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+> ```
+
 启动校验（必须满足，否则拒绝启动）：
 - `JWT_SECRET` 缺失/占位符 → 拒绝启动
 - `COOKIE_ENCRYPTION_KEY` 缺失 → 启动告警（回退 JWT_SECRET 派生，仅限本地；生产必须配齐）

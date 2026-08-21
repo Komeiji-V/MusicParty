@@ -277,10 +277,15 @@ public class NeteaseMusicProvider implements MusicProvider {
                 .map(json -> {
                     JsonNode account = json.path("account");
                     if (account == null || account.isNull()) {
+                        log.warn("checkVip: /user/account 未返回账号信息: {}", json);
                         return -1; // Cookie 无效或未登录，无法判定
                     }
-                    return account.path("vipType").asInt(0);
+                    int vipType = account.path("vipType").asInt(0);
+                    log.info("checkVip: vipType={} accountId={} anon={}",
+                            vipType, account.path("id").asLong(-1), account.path("anonimousUser").asBoolean(false));
+                    return vipType;
                 })
+                .doOnError(e -> log.warn("checkVip: 请求 /user/account 失败: {}", e.getMessage()))
                 .onErrorReturn(-1);
     }
 

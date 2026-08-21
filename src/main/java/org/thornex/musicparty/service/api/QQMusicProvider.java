@@ -508,6 +508,22 @@ public class QQMusicProvider implements MusicProvider {
 
     @Override
     public Mono<String> getLyric(String musicId) {
+        return fetchLyricMap(musicId).map(m -> {
+            String lrc = m.getOrDefault("lrc", "");
+            return lrc.isEmpty() ? m.getOrDefault("trans", "") : lrc;
+        });
+    }
+
+    /** 结构化歌词：原文 lrc + 翻译 tlyric（QQ 接口逐句返回两份，时间轴对齐） */
+    @Override
+    public Mono<java.util.Map<String, String>> getLyricFull(String musicId) {
+        return fetchLyricMap(musicId).map(m -> java.util.Map.of(
+                "lrc", m.getOrDefault("lrc", ""),
+                "tlyric", m.getOrDefault("trans", ""),
+                "romalrc", ""));
+    }
+
+    private Mono<Map<String, String>> fetchLyricMap(String musicId) {
         ObjectNode lyricParam = objectMapper.createObjectNode();
         lyricParam.put("songMID", musicId);
         lyricParam.put("songID", 0);
@@ -526,13 +542,12 @@ public class QQMusicProvider implements MusicProvider {
         return postMusicu(reqData)
                 .map(jsonNode -> {
                     JsonNode lyricData = jsonNode.path("req_0").path("data");
-                    String lyric = lyricData.path("lyric").asText();
-                    if (lyric.isEmpty()) {
-                        lyric = lyricData.path("trans").asText();
-                    }
-                    return decodeBase64IfNeeded(lyric);
+                    Map<String, String> m = new HashMap<>();
+                    m.put("lrc", decodeBase64IfNeeded(lyricData.path("lyric").asText()));
+                    m.put("trans", decodeBase64IfNeeded(lyricData.path("trans").asText()));
+                    return m;
                 })
-                .onErrorReturn("");
+                .onErrorReturn(java.util.Map.of("lrc", "", "trans", ""));
     }
 
     private String decodeBase64IfNeeded(String content) {

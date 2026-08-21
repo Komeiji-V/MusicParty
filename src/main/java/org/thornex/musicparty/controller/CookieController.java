@@ -240,12 +240,11 @@ public class CookieController {
         if (!(provider instanceof org.thornex.musicparty.service.api.NeteaseMusicProvider netease)) {
             return ResponseEntity.badRequest().body(Map.of("message", "网易云音源不可用"));
         }
-        // 池内 Cookie 为 AES-GCM 密文（enc:v1:），必须先解密再提交网易云检测
-        final String plainCookie;
-        try {
-            plainCookie = crypto.decrypt(item.getCookie());
-        } catch (Exception e) {
-            log.warn("checkVip: Cookie 解密失败 id={}: {}", id, e.getMessage());
+        // 池内 Cookie 为 AES-GCM 密文（enc:v1:），必须先解密再提交网易云检测。
+        // decrypt 对损坏/密钥不匹配的密文返回空串（内部吞异常，不泄露密文）
+        String plainCookie = crypto.decrypt(item.getCookie());
+        if (plainCookie == null || plainCookie.isBlank()) {
+            log.warn("checkVip: Cookie 解密失败（密钥不匹配或数据损坏）id={}", id);
             return ResponseEntity.badRequest().body(Map.of("message", "Cookie 解密失败，请重新提交"));
         }
         Integer vipType = netease.checkVip(plainCookie).block(java.time.Duration.ofSeconds(15));

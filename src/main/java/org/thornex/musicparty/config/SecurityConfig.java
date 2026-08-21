@@ -98,7 +98,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/static/**").permitAll()
-                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/vite.svg").permitAll()
                         // SPA 前端路由（history 模式直访/刷新）；新增前端路由需同步加入
                         .requestMatchers("/login", "/room", "/room/**", "/profile", "/playlists", "/channel/**", "/admin", "/u/**").permitAll()
                         // 媒体缓存：签名 URL 鉴权由 MediaAuthFilter 处理（M1）

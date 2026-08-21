@@ -96,6 +96,16 @@ export const usePlaylistStore = defineStore('playlist', () => {
         await client.delete(`/api/user/playlists/${playlistId}/items/${itemId}`);
     };
 
+    // 自定义排序：歌单列表 / 歌单内歌曲（传有序 id 数组，后端重写 sort_order / position）
+    const reorderPlaylists = async (orderedIds) => {
+        await client.put('/api/user/playlists/order', orderedIds);
+        await fetchPlaylists();
+    };
+    const reorderItems = async (playlistId, orderedIds) => {
+        await client.put(`/api/user/playlists/${playlistId}/items/order`, orderedIds);
+        await fetchItems(playlistId);
+    };
+
     const exportPlaylist = async (id, format = 'json') => {
         const token = localStorage.getItem('mp_token');
         const res = await fetch(`/api/user/playlists/${id}/export?format=${format}`, {
@@ -127,6 +137,6 @@ export const usePlaylistStore = defineStore('playlist', () => {
     return {
         playlists, categories, currentPlaylist, items, loading,
         fetchPlaylists, fetchCategories, createPlaylist, updatePlaylist, deletePlaylist,
-        fetchItems, addItem, importSongs, removeItem, exportPlaylist
+        fetchItems, addItem, importSongs, removeItem, reorderPlaylists, reorderItems, exportPlaylist
     };
 });

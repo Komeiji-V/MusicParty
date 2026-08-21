@@ -247,7 +247,7 @@
           <!-- 称号定义（先制作，后下发） -->
           <div class="bg-white border border-medical-200 chamfer-br overflow-hidden mb-4">
             <div class="p-3 bg-medical-900 text-white flex justify-between items-center">
-              <span class="text-xs font-bold uppercase tracking-widest font-mono">称号定义（先制作）</span>
+              <span class="text-xs font-bold uppercase tracking-widest font-mono">称号定义</span>
               <button @click="loadTitleDefs" class="text-accent text-xs font-mono">[REFRESH]</button>
             </div>
             <div class="p-4">
@@ -277,7 +277,7 @@
           <!-- 称号下发 -->
           <div class="bg-white border border-medical-200 chamfer-br overflow-hidden">
             <div class="p-3 bg-medical-900 text-white flex justify-between items-center">
-              <span class="text-xs font-bold uppercase tracking-widest font-mono">授予称号（后下发）</span>
+              <span class="text-xs font-bold uppercase tracking-widest font-mono">授予称号</span>
               <button @click="loadAllTitles" class="text-accent text-xs font-mono">[REFRESH]</button>
             </div>
             <div class="p-4">
@@ -290,15 +290,42 @@
                 <button @click="grantTitle" class="px-5 py-2 bg-medical-900 text-white text-sm font-bold hover:bg-accent transition-colors flex-shrink-0">授予</button>
               </div>
 
-              <div v-if="allTitles.length === 0" class="text-xs font-mono text-medical-400 py-2">暂无已授予的称号</div>
-              <div v-for="t in allTitles" :key="t.id" class="flex items-center justify-between py-2 border-b border-medical-100 last:border-0">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="px-2 py-0.5 text-xs leading-none font-bold rounded-[2px] flex-shrink-0" :style="{ backgroundColor: t.color || '#ff5722', color: titleTextColor(t.color) }">{{ t.title }}</span>
-                  <span class="text-sm text-medical-800">→ {{ t.username }}</span>
-                  <span class="text-xs font-mono text-medical-400 truncate">{{ t.source }}</span>
-                </div>
-                <button @click="revokeTitle(t)" class="text-xs font-mono text-red-400 hover:underline flex-shrink-0">[收回]</button>
+              <!-- 视图切换：按称号 / 按用户 -->
+              <div class="flex gap-1 mb-3">
+                <button @click="titleGroupView = 'title'" class="px-3 py-1 text-xs font-bold transition-colors"
+                        :class="titleGroupView === 'title' ? 'bg-medical-900 text-white' : 'bg-medical-100 text-medical-500 hover:bg-medical-200'">按称号</button>
+                <button @click="titleGroupView = 'user'" class="px-3 py-1 text-xs font-bold transition-colors"
+                        :class="titleGroupView === 'user' ? 'bg-medical-900 text-white' : 'bg-medical-100 text-medical-500 hover:bg-medical-200'">按用户</button>
               </div>
+
+              <div v-if="allTitles.length === 0" class="text-xs font-mono text-medical-400 py-2">暂无已授予的称号</div>
+              <template v-else>
+                <div v-for="g in groupedTitles" :key="g.key" class="mb-3 border border-medical-100">
+                  <div class="px-3 py-1.5 bg-medical-50 border-b border-medical-100 flex items-center gap-2">
+                    <template v-if="titleGroupView === 'title'">
+                      <span class="px-2 py-0.5 text-xs leading-none font-bold rounded-[2px]"
+                            :style="{ backgroundColor: g.color || '#ff5722', color: titleTextColor(g.color) }">{{ g.key }}</span>
+                    </template>
+                    <template v-else>
+                      <span class="text-sm font-bold text-medical-800">{{ g.key }}</span>
+                    </template>
+                    <span class="text-[10px] font-mono text-medical-400">{{ g.list.length }} 个</span>
+                  </div>
+                  <div v-for="t in g.list" :key="t.id" class="flex items-center justify-between px-3 py-1.5 border-b border-medical-50 last:border-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <template v-if="titleGroupView === 'title'">
+                        <span class="text-sm text-medical-800">→ {{ t.username }}</span>
+                      </template>
+                      <template v-else>
+                        <span class="px-2 py-0.5 text-xs leading-none font-bold rounded-[2px] flex-shrink-0"
+                              :style="{ backgroundColor: t.color || '#ff5722', color: titleTextColor(t.color) }">{{ t.title }}</span>
+                      </template>
+                      <span class="text-xs font-mono text-medical-400 truncate">{{ t.source }}</span>
+                    </div>
+                    <button @click="revokeTitle(t)" class="text-xs font-mono text-red-400 hover:underline flex-shrink-0">[收回]</button>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -363,6 +390,18 @@ const newPoolCookies = reactive({ netease: '', qq: '', kugou: '', bilibili: '' }
 
 // 称号管理
 const allTitles = ref([])
+const titleGroupView = ref('title') // 'title' = 按称号分类 | 'user' = 按用户分类
+
+// 分组：按称号（每组显示持有者）或按用户（每组显示其称号）
+const groupedTitles = computed(() => {
+  const groups = new Map()
+  for (const t of allTitles.value) {
+    const key = titleGroupView.value === 'title' ? t.title : t.username
+    if (!groups.has(key)) groups.set(key, { key, color: t.color, list: [] })
+    groups.get(key).list.push(t)
+  }
+  return [...groups.values()]
+})
 const grantForm = reactive({ username: '', title: '' })
 const titleDefs = ref([])
 const defForm = reactive({ name: '', color: '#ff5722' })

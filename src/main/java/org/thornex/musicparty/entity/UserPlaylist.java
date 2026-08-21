@@ -31,6 +31,10 @@ public class UserPlaylist {
     @Builder.Default
     private boolean isPublic = false;
 
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private Integer sortOrder = 0;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

@@ -53,7 +53,7 @@
           <div
               v-for="pl in filteredPlaylists" :key="pl.id"
               @click="selectPlaylist(pl)"
-              class="p-3 border transition-all cursor-pointer group"
+              class="relative p-3 border transition-all cursor-pointer group"
               :class="selected?.id === pl.id ? 'border-accent bg-medical-50 shadow-sm' : 'border-medical-200 hover:border-medical-300 bg-white'"
           >
             <div class="flex items-center gap-3">
@@ -69,6 +69,16 @@
                   <span v-if="pl.category" class="px-1.5 py-0.5 text-xs font-mono font-bold text-accent border border-accent/40 bg-accent/10 rounded-sm">{{ pl.category }}</span>
                   <span class="px-1.5 py-0.5 text-xs font-mono font-bold text-medical-500 bg-medical-100 rounded-sm">{{ pl.itemCount }} TRACKS</span>
                   <span v-if="pl.isPublic" class="px-1.5 py-0.5 text-xs font-mono font-bold text-green-700 bg-green-100 rounded-sm">PUBLIC</span>
+                </div>
+                <div class="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), -1)" title="上移"
+                          class="w-6 h-6 flex items-center justify-center bg-medical-50 border border-medical-200 hover:border-accent hover:text-accent transition-colors text-medical-400">
+                    <ArrowUp class="w-3.5 h-3.5" />
+                  </button>
+                  <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), 1)" title="下移"
+                          class="w-6 h-6 flex items-center justify-center bg-medical-50 border border-medical-200 hover:border-accent hover:text-accent transition-colors text-medical-400">
+                    <ArrowDown class="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -171,6 +181,14 @@
                 <button @click="enqueueOne(item.music)" title="点歌"
                         class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
                   <PlusCircle class="w-5 h-5" />
+                </button>
+                <button @click="moveItem(idx, -1)" title="上移"
+                        class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
+                  <ArrowUp class="w-4 h-4" />
+                </button>
+                <button @click="moveItem(idx, 1)" title="下移"
+                        class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
+                  <ArrowDown class="w-4 h-4" />
                 </button>
                 <button @click="handleRemove(item)" title="移除"
                         class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
@@ -280,6 +298,7 @@ import {
   FileJson, FileText, Loader2, Image as ImageIcon
 } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
+import { ArrowUp, ArrowDown } from 'lucide-vue-next';
 import { usePlayerStore } from '../stores/player';
 import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';
@@ -417,6 +436,27 @@ const enqueueAll = () => {
     playerStore.enqueue(item.music.platform, item.music.id);
   });
   info(`已全部点歌: ${playlistStore.items.length} 首`);
+};
+
+// 自定义排序：歌单列表上移/下移（按当前过滤视图顺序重排，未过滤的保持相对顺序）
+const movePlaylist = async (idx, dir) => {
+  if (idx < 0) return;
+  const view = [...filteredPlaylists];
+  const j = idx + dir;
+  if (j < 0 || j >= view.length) return;
+  [view[idx], view[j]] = [view[j], view[idx]];
+  const viewIds = new Set(view.map(p => p.id));
+  const rest = playlistStore.playlists.filter(p => !viewIds.has(p.id));
+  await playlistStore.reorderPlaylists([...view.map(p => p.id), ...rest.map(p => p.id)]);
+};
+
+// 歌单内歌曲上移/下移
+const moveItem = async (idx, dir) => {
+  const list = [...playlistStore.items];
+  const j = idx + dir;
+  if (j < 0 || j >= list.length) return;
+  [list[idx], list[j]] = [list[j], list[idx]];
+  await playlistStore.reorderItems(selected.value.id, list.map(i => i.itemId));
 };
 
 const handleRemove = async (item) => {

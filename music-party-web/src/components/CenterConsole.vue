@@ -264,6 +264,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useUserStore } from '../stores/user';
 import { useChannelStore } from '../stores/channel';
+import { useToast } from '../composables/useToast';
 import {useEventListener, useWindowSize} from '@vueuse/core';
 import { parseLyrics, parseLyricsFull } from '../utils/parser';
 import { AudioVisualizer } from '../logic/AudioVisualizer';
@@ -273,6 +274,7 @@ import { Heart, Activity, Zap, Maximize2, Minimize2 } from 'lucide-vue-next';
 const userStore = useUserStore();
 const player = usePlayerStore();
 const channelStore = useChannelStore();
+const toast = useToast();
 const uiStore = useUiStore();
 const canvasRef = ref(null);
 const currentCover = computed(() => player.nowPlaying?.music.coverUrl);
@@ -317,6 +319,11 @@ const handleCoverClick = () => {
 };
 
 const confirmLike = () => {
+  // 不能给自己点播的歌点赞
+  if (player.nowPlaying?.enqueuedById && player.nowPlaying.enqueuedById === userStore.userToken) {
+    toast.info('不能给自己的歌点赞');
+    return;
+  }
   player.sendLike();
   triggerBurst(); // 本地先爆发一次，提升手感
 };

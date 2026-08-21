@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface UserPlaylistRepository extends JpaRepository<UserPlaylist, Long> {
 
-    List<UserPlaylist> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<UserPlaylist> findByUserIdOrderBySortOrderAscCreatedAtDesc(Long userId);
 
     Optional<UserPlaylist> findByIdAndUserId(Long id, Long userId);
 

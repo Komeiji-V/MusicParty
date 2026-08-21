@@ -58,9 +58,42 @@ public class UserPlaylistService {
     }
 
     public List<UserPlaylistDto> list(Long userId) {
-        return playlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        return playlistRepository.findByUserIdOrderBySortOrderAscCreatedAtDesc(userId).stream()
                 .map(pl -> toDto(pl, itemRepository.countByPlaylistId(pl.getId())))
                 .toList();
+    }
+
+    /** 自定义歌单列表排序：按传入 id 顺序重写 sortOrder */
+    @Transactional
+    public void reorderPlaylists(Long userId, List<Long> orderedIds) {
+        if (orderedIds == null || orderedIds.isEmpty()) return;
+        List<UserPlaylist> owned = playlistRepository.findByUserIdOrderBySortOrderAscCreatedAtDesc(userId);
+        java.util.Map<Long, UserPlaylist> byId = owned.stream()
+                .collect(java.util.stream.Collectors.toMap(UserPlaylist::getId, pl -> pl));
+        for (int i = 0; i < orderedIds.size(); i++) {
+            UserPlaylist pl = byId.get(orderedIds.get(i));
+            if (pl != null && !Integer.valueOf(i).equals(pl.getSortOrder())) {
+                pl.setSortOrder(i);
+                playlistRepository.save(pl);
+            }
+        }
+    }
+
+    /** 自定义歌单内歌曲排序：按传入 itemId 顺序重写 position */
+    @Transactional
+    public void reorderItems(Long userId, Long playlistId, List<Long> orderedIds) {
+        getOwned(userId, playlistId);
+        if (orderedIds == null || orderedIds.isEmpty()) return;
+        List<PlaylistItem> items = itemRepository.findByPlaylistIdOrderByPosition(playlistId);
+        java.util.Map<Long, PlaylistItem> byId = items.stream()
+                .collect(java.util.stream.Collectors.toMap(PlaylistItem::getId, it -> it));
+        for (int i = 0; i < orderedIds.size(); i++) {
+            PlaylistItem it = byId.get(orderedIds.get(i));
+            if (it != null && it.getPosition() != i) {
+                it.setPosition(i);
+                itemRepository.save(it);
+            }
+        }
     }
 
     public List<String> categories(Long userId) {

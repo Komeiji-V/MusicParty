@@ -16,20 +16,19 @@
           <Search class="w-5 h-5 text-accent"/> SEARCH
         </h2>
 
-        <!-- 平台切换 TAB -->
-        <div class="flex gap-1 mb-4">
+        <!-- 平台切换 TAB：仅显示当前频道启用的音源；窄屏两排两列 -->
+        <div v-if="enabledPlatforms.length" class="grid grid-cols-2 gap-1 mb-4 md:flex">
           <button
-              v-for="p in ['netease', 'qq', 'kugou', 'bilibili']" :key="p"
+              v-for="p in enabledPlatforms" :key="p"
               @click="platform = p"
-              :disabled="!isPlatformEnabled(p)"
-              class="px-6 py-2 text-sm font-bold uppercase transition-all"
-              :class="[
-                platform === p ? 'bg-medical-900 text-white' : 'bg-medical-200 text-medical-500 hover:bg-medical-300',
-                !isPlatformEnabled(p) ? 'opacity-30 cursor-not-allowed grayscale' : ''
-              ]"
+              class="px-3 md:px-6 py-2 text-sm font-bold uppercase transition-all"
+              :class="platform === p ? 'bg-medical-900 text-white' : 'bg-medical-200 text-medical-500 hover:bg-medical-300'"
           >
             {{ p }}
           </button>
+        </div>
+        <div v-else class="mb-4 p-3 border border-dashed border-medical-300 bg-medical-50 text-xs font-mono text-medical-400 text-center">
+          当前频道未启用任何音源
         </div>
 
         <!-- 搜索框 -->
@@ -182,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useSearchLogic } from '../composables/useSearchLogic';
 import { usePlaylistLogic } from '../composables/usePlaylistLogic';
@@ -194,6 +193,17 @@ const props = defineProps(['isOpen']);
 const emit = defineEmits(['close']);
 const playerStore = usePlayerStore();
 const pickerMusic = ref(null);
+
+// 仅渲染当前频道启用的音源（频道管理里关掉的音源，搜索弹窗里直接隐藏）
+const enabledPlatforms = computed(() =>
+    ['netease', 'qq', 'kugou', 'bilibili'].filter(p => isPlatformEnabled(p)));
+
+// 当前选中平台被禁用时自动切换到第一个可用音源
+watch(enabledPlatforms, (list) => {
+  if (!list.includes(platform.value)) {
+    platform.value = list[0] || 'netease';
+  }
+}, { immediate: true });
 
 const isPlatformEnabled = (p) => {
   if (p === 'netease') return playerStore.config?.neteaseEnabled !== false;

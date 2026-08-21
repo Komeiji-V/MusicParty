@@ -22,7 +22,7 @@
             @click="openPublicProfile"
             class="w-full flex items-center justify-center gap-2 py-2 border border-accent text-accent text-xs font-bold hover:bg-accent hover:text-white transition-colors chamfer-br"
           >
-            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页（/u/{{ props.authUid }}）
+            <ExternalLink class="w-3.5 h-3.5" /> 查看完整公开主页
           </button>
 
           <!-- 称号 -->

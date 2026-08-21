@@ -220,14 +220,17 @@ function onSongArea(el) {
   songRO = new ResizeObserver(() => { songAreaW.value = el.clientWidth })
   songRO.observe(el)
 }
-const colW = computed(() => Math.max(40, (songAreaW.value - 5 * SONG_GAP) / 6))
+// 列宽最小 = 行高（126px）→ 1x1 模块恒为正方形（窄屏/小窗下模块最小 1×1，不会被压成细条）；
+// 列数随容器宽度自适应（窄屏自动减少列数）
+const colCount = computed(() => Math.max(1, Math.floor((songAreaW.value + SONG_GAP) / (SONG_ROW_H + SONG_GAP))))
+const colW = computed(() => Math.max(SONG_ROW_H, (songAreaW.value - (colCount.value - 1) * SONG_GAP) / colCount.value))
 
 const rows = computed(() => {
   const cw = colW.value
   // 滚动开关：第一页 2x6（12 格）放满才滚动；静态时上下对齐，滚动时才启用第二排错缝
   let cells = 0
   for (const w of songWidgetsSorted.value) cells += sizeW(w) * sizeH(w)
-  const overflow = cells > 12
+  const overflow = cells > colCount.value * 2
   const halfShift = overflow ? cw / 2 : 0 // 错缝只在滚动时启用
   const row0 = [] // 第一排模块
   const row1 = [] // 第二排模块
@@ -237,12 +240,12 @@ const rows = computed(() => {
     const mw = sizeW(w)
     const mh = sizeH(w)
     const mod = { ...w, left: 0, pxW: mw * cw + (mw - 1) * SONG_GAP, pxH: mh * SONG_ROW_H }
-    if (x0 + mw <= 6) {
+    if (x0 + mw <= colCount.value) {
       // 第一排优先填满（前 6 列）
       mod.left = x0 * (cw + SONG_GAP)
       row0.push(mod)
       x0 += mw
-    } else if (x1 + mw <= 6) {
+    } else if (x1 + mw <= colCount.value) {
       // 第二排填满（前 6 列）
       mod.left = x1 * (cw + SONG_GAP) + halfShift
       row1.push(mod)

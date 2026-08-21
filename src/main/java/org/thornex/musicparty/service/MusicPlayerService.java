@@ -568,6 +568,13 @@ public class MusicPlayerService {
         PlayableMusic music = cs.currentMusic.get();
         if (music == null) return;
         String token = getUserToken(sessionId);
+        // 不能给自己点播的歌点赞
+        String enqueuer = cs.currentEnqueuerId.get();
+        if (enqueuer != null && enqueuer.equals(token)) {
+            log.info("Like rejected: {} attempted to like own enqueued song in channel {}",
+                    getUserName(sessionId), channelId);
+            return;
+        }
         if (cs.likedUserIds.contains(token)) return;
         cs.likedUserIds.add(token);
         long progress = calculateCurrentPosition(cs);
@@ -666,6 +673,15 @@ public class MusicPlayerService {
             if (!isOwner && !isAdmin) {
                 log.warn("Top rejected: {} attempted to top song enqueued by {} in channel {}",
                         op.getName(), existing.get().enqueuedBy().name(), channelId);
+                return;
+            }
+            // 权限分级：普通用户对自己已置顶的歌再点 = 取消个人置顶（不允许升级为全局置顶）；管理员可全局置顶
+            if (isOwner && !isAdmin && existing.get().priority() == org.thornex.musicparty.enums.Priority.USER_TOP) {
+                TopResult r = queueManager.unTop(queueId, channelId);
+                if (r != TopResult.NONE) {
+                    log.info("Song un-topped by {} in channel {}", op.getName(), channelId);
+                    broadcastQueueUpdate(channelId);
+                }
                 return;
             }
         }

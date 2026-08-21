@@ -43,9 +43,6 @@
               class="w-full flex items-center justify-between p-3 hover:bg-medical-50 transition-colors"
           >
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded bg-medical-100 flex items-center justify-center text-medical-500">
-                <User class="w-4 h-4" />
-              </div>
               <div class="text-left">
                 <div class="text-sm font-bold text-medical-800">
                   {{ userStore.resolveName(group.token, group.name) }}

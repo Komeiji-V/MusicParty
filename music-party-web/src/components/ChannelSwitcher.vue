@@ -53,17 +53,17 @@
             class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-medical-50 transition-colors text-sm font-bold text-medical-700 text-left"
           >
             <Settings class="w-4 h-4 text-medical-400" />
-            频道管理（本频道）
+            频道管理
           </button>
         </div>
-        <!-- 返回首页（退出频道） -->
+        <!-- 返回首页 -->
         <div class="border-t border-medical-100">
           <button
             @click="goHome"
             class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-red-50 transition-colors text-sm font-bold text-red-500 text-left"
           >
             <Home class="w-4 h-4" />
-            返回首页（退出频道）
+            返回首页
           </button>
         </div>
       </div>

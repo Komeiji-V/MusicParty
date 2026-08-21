@@ -7,6 +7,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.thornex.musicparty.config.SecurityConfig;
@@ -90,6 +91,22 @@ public class PlaylistController {
     public ResponseEntity<?> removeItem(@PathVariable Long id, @PathVariable Long itemId) {
         playlistService.removeItem(SecurityConfig.getCurrentUserId(), id, itemId);
         return ResponseEntity.ok(Map.of("message", "歌曲已移除"));
+    }
+
+    /** 歌单内歌曲自定义排序：body = 有序 itemId 数组 */
+    @PutMapping("/{id}/items/order")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> reorderItems(@PathVariable Long id, @RequestBody List<Long> orderedIds) {
+        playlistService.reorderItems(SecurityConfig.getCurrentUserId(), id, orderedIds);
+        return ResponseEntity.ok(Map.of("message", "排序已保存"));
+    }
+
+    /** 歌单列表自定义排序：body = 有序 playlistId 数组 */
+    @PutMapping("/order")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> reorderPlaylists(@RequestBody List<Long> orderedIds) {
+        playlistService.reorderPlaylists(SecurityConfig.getCurrentUserId(), orderedIds);
+        return ResponseEntity.ok(Map.of("message", "排序已保存"));
     }
 
     @GetMapping("/{id}/export")

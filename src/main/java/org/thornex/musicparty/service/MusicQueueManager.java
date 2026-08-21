@@ -234,6 +234,26 @@ public class MusicQueueManager {
         return add(music, enqueuedBy, initialStatus, DEFAULT_CHANNEL_ID);
     }
 
+    /** 取消个人置顶（USER_TOP → REGULAR）；普通用户再次置顶时调用，防止升级为全局置顶 */
+    public synchronized TopResult unTop(String queueId, Long channelId) {
+        Long cid = channelId != null ? channelId : DEFAULT_CHANNEL_ID;
+        Deque<MusicQueueItem> queue = getQueue(cid);
+        Optional<MusicQueueItem> itemOpt = findByQueueId(queue, queueId);
+        if (itemOpt.isEmpty()) return TopResult.NONE;
+        MusicQueueItem item = itemOpt.get();
+        if (item.priority() != Priority.USER_TOP) return TopResult.NONE;
+        List<MusicQueueItem> snapshot = new ArrayList<>(queue);
+        int index = snapshot.indexOf(item);
+        if (index != -1) {
+            snapshot.set(index, item.withPriority(Priority.REGULAR));
+            queue.clear();
+            queue.addAll(snapshot);
+            syncQueueToDb(cid);
+            return TopResult.PERSONAL;
+        }
+        return TopResult.NONE;
+    }
+
     public synchronized TopResult top(String queueId, PlayMode playMode, Long channelId) {
         Long cid = channelId != null ? channelId : DEFAULT_CHANNEL_ID;
         Deque<MusicQueueItem> queue = getQueue(cid);

@@ -335,7 +335,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed } from 'vue'
 import client from '../api/client'
 import { useToast } from '../composables/useToast'
 import { useConfirmStore } from '../stores/confirm'

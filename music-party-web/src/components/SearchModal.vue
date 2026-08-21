@@ -194,17 +194,6 @@ const emit = defineEmits(['close']);
 const playerStore = usePlayerStore();
 const pickerMusic = ref(null);
 
-// 仅渲染当前频道启用的音源（频道管理里关掉的音源，搜索弹窗里直接隐藏）
-const enabledPlatforms = computed(() =>
-    ['netease', 'qq', 'kugou', 'bilibili'].filter(p => isPlatformEnabled(p)));
-
-// 当前选中平台被禁用时自动切换到第一个可用音源
-watch(enabledPlatforms, (list) => {
-  if (!list.includes(platform.value)) {
-    platform.value = list[0] || 'netease';
-  }
-}, { immediate: true });
-
 const isPlatformEnabled = (p) => {
   if (p === 'netease') return playerStore.config?.neteaseEnabled !== false;
   if (p === 'bilibili') return playerStore.config?.bilibiliEnabled !== false;
@@ -217,6 +206,17 @@ const isPlatformEnabled = (p) => {
 const {
   platform, keyword, songs, loading, listMode, doSearch
 } = useSearchLogic(emit);
+
+// 仅渲染当前频道启用的音源（频道管理里关掉的音源，搜索弹窗里直接隐藏）
+const enabledPlatforms = computed(() =>
+    ['netease', 'qq', 'kugou', 'bilibili'].filter(p => isPlatformEnabled(p)));
+
+// 当前选中平台被禁用时自动切换到第一个可用音源
+watch(enabledPlatforms, (list) => {
+  if (!list.includes(platform.value)) {
+    platform.value = list[0] || 'netease';
+  }
+}, { immediate: true });
 
 const handleSearchAction = async () => {
   await doSearch();

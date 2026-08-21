@@ -416,7 +416,8 @@ const measureLyricFit = () => {
     lyricFullDisabled.value = false;
   }
 };
-watch(() => player.lyricStyle, () => { nextTick(measureLyricFit); });
+// 样式切换后歌词区重新挂载：重测宽度 + 重算滚动位置（避免 scrollY 残留旧值）
+watch(() => player.lyricStyle, () => { nextTick(() => { measureLyricFit(); updateScroll(); }); });
 watch(lyricHidden, (hidden) => {
   if (hidden && player.lyricStyle === 'full') player.lyricStyle = 'compact';
 });

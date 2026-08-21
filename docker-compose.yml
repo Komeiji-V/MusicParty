@@ -44,6 +44,14 @@ services:
       - AUTH_CENTER_URL=${AUTH_CENTER_URL:-http://localhost:8000}
       - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-string}
 
+      # [安全]（与 .env.example 对应；生产必配，见 docs/DEPLOY.md）
+      # CORS 白名单：生产域名必传，否则 API 被 CORS 拦截（auth-center origin 会自动并入）
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:8848,http://localhost:8080}
+      # Cookie 加密独立密钥：缺失时回退 JWT_SECRET 派生（生产请独立设置）
+      - COOKIE_ENCRYPTION_KEY=${COOKIE_ENCRYPTION_KEY:-}
+      # 超管白名单：逗号分隔的 auth-center 用户 id；留空 = 信任认证中心 admin 角色
+      - SUPER_ADMIN_AUTH_UIDS=${SUPER_ADMIN_AUTH_UIDS:-}
+
       # [基础配置]
       - BASE_URL=${BASE_URL:-http://localhost:8848}
       - APP_AUTHOR_NAME=${APP_AUTHOR_NAME:-ThorNex}

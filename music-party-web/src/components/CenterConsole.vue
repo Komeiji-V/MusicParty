@@ -233,41 +233,25 @@
             <Minimize2 class="w-3.5 h-3.5" />
           </button>
         </div>
-        <!-- Apple Music 风格聚焦歌词：当前行大字靠左、前后行小字淡出（行原地切换，不滚动） -->
-        <div class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden">
-          <div class="absolute inset-0 flex flex-col justify-center items-stretch gap-2 md:gap-3">
-            <div v-if="parsedLyrics.length === 0" class="opacity-50 flex items-center justify-center w-full">
-              <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
-            </div>
-            <!-- 固定 5 个槽位：行不增删，仅内容/字号/透明度过渡（平滑无跳动） -->
+        <!-- 滚动歌词：所有行同一字号，换词时列表上下滚动，当前行深色、其余很浅 -->
+        <div ref="lyricWinRef" class="pointer-events-auto relative flex-1 min-h-0 overflow-hidden">
+          <div v-if="parsedLyrics.length === 0" class="absolute inset-0 opacity-50 flex items-center justify-center w-full">
+            <span class="text-accent/50 mr-2 text-xs">></span>NO_DATA_STREAM
+          </div>
+          <div v-else class="absolute left-0 right-0 top-0 flex flex-col items-stretch"
+               :style="{ transform: `translateY(${scrollY}px)`, transition: 'transform 0.35s cubic-bezier(.22, 1, .36, 1)' }">
             <div
-                v-else
-                v-for="(slot, i) in slotLines"
-                :key="i"
-                class="relative w-full flex items-center transition-all duration-500"
-                :class="slot
-                  ? (slot._center ? 'h-auto py-0.5' : 'h-10 md:h-11')
-                  : 'h-10 md:h-11'"
+                v-for="(line, i) in parsedLyrics"
+                :key="line.time"
+                :ref="el => { if (el) lineEls[i] = el }"
+                class="w-full flex flex-col justify-center px-1 py-1.5 md:py-2 text-left break-words transition-colors duration-300"
+                :class="i === currentLineIndex
+                  ? 'text-base md:text-lg font-bold text-medical-900'
+                  : 'text-base md:text-lg text-medical-400 opacity-40'"
             >
-              <!-- 交叉淡入淡出：旧文字上滑淡出 + 新文字下滑淡入同时进行，无空白闪烁；
-                   中心槽位用放大/缩小动画（scale 不参与布局 → 换行点固定，无转行跳变） -->
-              <Transition :name="slot && slot._center ? 'lyric-swap-center' : 'lyric-swap-side'" mode="out-in">
-                <div
-                    v-if="slot"
-                    :key="slot.time"
-                    class="w-full text-left px-1 leading-snug break-words transition-all duration-500"
-                    :class="slot._center
-                      ? 'text-2xl md:text-[30px] font-black text-medical-900'
-                      : slot._near
-                        ? 'text-sm md:text-base font-bold text-medical-600 opacity-70'
-                        : 'text-xs md:text-sm text-medical-400 opacity-40'"
-                >
-                  <!-- 罗马音在歌词上方（黑色） -->
-                  <div v-if="slot._center && player.showRoman && slot.roman" class="text-sm md:text-lg text-medical-900 font-medium italic mb-0.5">{{ slot.roman }}</div>
-                  <div>{{ slot.text }}</div>
-                  <div v-if="slot._center && player.showTranslation && slot.trans" class="text-sm md:text-lg text-accent font-medium mt-0.5">{{ slot.trans }}</div>
-                </div>
-              </Transition>
+              <div v-if="i === currentLineIndex && player.showRoman && line.roman" class="text-xs md:text-sm text-medical-900/60 italic">{{ line.roman }}</div>
+              <div>{{ line.text }}</div>
+              <div v-if="i === currentLineIndex && player.showTranslation && line.trans" class="text-xs md:text-sm text-accent/90">{{ line.trans }}</div>
             </div>
           </div>
         </div>
@@ -381,22 +365,36 @@ const toggleLyricStyle = () => {
   player.lyricStyle = player.lyricStyle === 'compact' ? 'full' : 'compact';
 };
 
-// full 样式：固定 5 个槽位（当前行居中，前后各 2），行不增删仅内容过渡
-const slotLines = computed(() => {
-  const all = parsedLyrics.value;
-  if (all.length === 0) return [];
-  const idx = currentLineIndex.value < 0 ? 0 : currentLineIndex.value;
-  const slots = [];
-  for (let off = -2; off <= 2; off++) {
-    const li = idx + off;
-    if (li >= 0 && li < all.length) {
-      slots.push({ ...all[li], _center: off === 0, _near: Math.abs(off) === 1 });
-    } else {
-      slots.push(null); // 空槽位（保持布局稳定）
-    }
+// full 样式：滚动歌词列表（所有行同一字号）。列表整体 translateY，
+// 让当前行垂直居中；行高按内容实际测量（长行换行、翻译/罗马音开关均正确）
+const lyricWinRef = ref(null);
+const lineEls = ref([]);
+const scrollY = ref(0);
+const updateScroll = () => {
+  const win = lyricWinRef.value;
+  if (!win) return;
+  const winH = win.clientHeight;
+  const els = lineEls.value;
+  if (!els.length) { scrollY.value = 0; return; }
+  const idx = currentLineIndex.value;
+  if (idx < 0) { scrollY.value = 0; return; }
+  let above = 0, listH = 0;
+  for (let i = 0; i < els.length; i++) {
+    const h = els[i] ? els[i].offsetHeight : 0;
+    if (i < idx) above += h;
+    listH += h;
   }
-  return slots;
-});
+  const hc = els[idx] ? els[idx].offsetHeight : 0;
+  let y = winH / 2 - hc / 2 - above;
+  // 列表不满视窗时顶部对齐；开头/结尾不越界
+  y = Math.min(0, Math.max(winH - listH, y));
+  scrollY.value = y;
+};
+watch(() => currentLineIndex.value, () => nextTick(updateScroll));
+// 歌词加载/翻译/罗马音开关/窗口宽度变化 → 行高或视窗高变化，重算滚动
+watch(parsedLyrics, () => nextTick(updateScroll), { deep: true });
+watch(() => [player.showTranslation, player.showRoman], () => nextTick(updateScroll));
+watch(width, () => nextTick(updateScroll));
 
 // 歌词框宽 = min(520px, 38vw, 主区半宽-16px)（主区 = 视口 - 左栏256 - 右栏320）；
 // <280px（约窗口 <1170px）时整个歌词区（含 compact）自动隐藏，避免放不下
@@ -565,35 +563,5 @@ onUnmounted(() => {
 </style>
 
 <style scoped>
-/* 歌词行串行切换（mode="out-in"）：旧文字先淡出完毕，新文字再淡入。
-   串行下新旧元素不同时存在 → 无 flex 并排问题，leave 保留在文档流中
-   撑住槽位高度（不塌陷）。
-   scale 不参与布局 → 行宽/换行点固定，放大动画不会引发转行跳变。
-   transform-origin: left center → 左对齐点不动，无横向位移 */
-.lyric-swap-center-enter-active,
-.lyric-swap-center-leave-active {
-  transition: opacity 0.4s cubic-bezier(.22, 1, .36, 1), transform 0.4s cubic-bezier(.22, 1, .36, 1);
-  transform-origin: left center;
-}
-.lyric-swap-center-enter-from {
-  opacity: 0;
-  transform: translateY(14px) scale(0.75);
-}
-.lyric-swap-center-leave-to {
-  opacity: 0;
-  transform: translateY(-14px) scale(0.75);
-}
-.lyric-swap-side-enter-active,
-.lyric-swap-side-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  transform-origin: left center;
-}
-.lyric-swap-side-enter-from {
-  opacity: 0;
-  transform: translateY(6px) scale(0.94);
-}
-.lyric-swap-side-leave-to {
-  opacity: 0;
-  transform: translateY(-6px) scale(0.94);
-}
+
 </style>

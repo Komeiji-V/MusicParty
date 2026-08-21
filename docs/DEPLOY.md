@@ -108,7 +108,33 @@ CACHE_MAX_SIZE=1GB
 - `JWT_SECRET` 缺失/占位符 → 拒绝启动
 - `COOKIE_ENCRYPTION_KEY` 缺失 → 启动告警（回退 JWT_SECRET 派生，仅限本地；生产必须配齐）
 
-### 3.2 Nginx 反代（HTTPS + WS + 长连接 + 限流）
+### 3.2 Docker Compose 部署（推荐）
+
+仓库根 `docker-compose.yml` 编排三个服务：`netease-api`（网易云音源）、`qq-api`（QQ 音源，可选 profile）、`music-party`（主应用）。安全变量（`CORS_ALLOWED_ORIGINS` / `COOKIE_ENCRYPTION_KEY` / `SUPER_ADMIN_AUTH_UIDS`）已透传，随 `.env` 生效。
+
+```bash
+# 1. 构建镜像（Dockerfile 三阶段：前端构建 → jar 打包 → 运行时含 ffmpeg）
+#    compose 引用 thornex/music-party:latest；自建镜像仓库请同步改 docker-compose.yml 的 image
+docker build -t thornex/music-party:latest .
+
+# 2. 配置环境变量（compose 自动读取；安全变量模板见 3.1）
+cp .env.example .env && vim .env
+
+# 3. 启动
+docker compose up -d               # 主应用 + 网易云音源
+docker compose --profile qq up -d  # 追加 QQ 音源（qq-api:3200，需配 QQ_COOKIE）
+
+# 4. 验证
+curl http://<主机>:8848/           # 前端可访问（容器 8080 → 主机 8848）
+docker compose logs music-party    # 无启动告警（COOKIE_ENCRYPTION_KEY 等）
+
+# 5. 更新部署
+git pull && docker compose build && docker compose up -d
+```
+
+> 说明：`postgresql` 与 `auth-center` 不在 compose 内（独立部署，见 3.1/3.3）；`db/`、`cached_media/` 数据卷挂载于 `./music_party/` 下。
+
+### 3.3 Nginx 反代（HTTPS + WS + 长连接 + 限流）
 
 ```nginx
 # 80 → 443（HSTS 由应用响应头下发，仅 https 生效）
@@ -161,7 +187,7 @@ server {
 }
 ```
 
-### 3.3 auth-center 生产配合（复核清单）
+### 3.4 auth-center 生产配合（复核清单）
 
 - [ ] `CORS_ORIGINS=https://musicparty.example.com`（回跳白名单；其 CSP `connect-src` 随配置自动同步）
 - [ ] auth-center 自身 HTTPS（Caddy），`AUTH_CENTER_URL` 全链路 https

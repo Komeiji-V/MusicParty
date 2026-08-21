@@ -138,11 +138,13 @@
               <button @click="showCoverModal = true" title="设置封面" class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
                 <ImageIcon class="w-3.5 h-3.5" /> 封面
               </button>
-              <button @click="handleExport('json')" class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
-                <FileJson class="w-3.5 h-3.5" /> JSON
+              <button @click="showImportModal = true" title="从网易云/QQ/酷狗歌单链接导入"
+                      class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
+                <Download class="w-3.5 h-3.5" /> 导入
               </button>
-              <button @click="handleExport('txt')" class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
-                <FileText class="w-3.5 h-3.5" /> TXT
+              <button @click="showExportModal = true" title="导出（JSON/TXT/按平台）"
+                      class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
+                <Upload class="w-3.5 h-3.5" /> 导出
               </button>
               <button @click="confirmDelete" class="px-3 py-2 border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
                 <Trash2 class="w-3.5 h-3.5" />
@@ -287,6 +289,56 @@
       @close="showCoverModal = false"
       @updated="onCoverUpdated"
     />
+
+    <!-- 导入弹窗：网易云/QQ/酷狗歌单链接 -->
+    <div v-if="showImportModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="showImportModal = false">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-md p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-black text-medical-900">从音源歌单导入</h3>
+          <button @click="showImportModal = false" class="text-medical-400 hover:text-medical-900 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="flex gap-1 mb-4">
+          <button v-for="p in ['netease', 'qq', 'kugou']" :key="p" @click="importPlatform = p"
+                  class="px-4 py-1.5 text-xs font-bold uppercase transition-colors"
+                  :class="importPlatform === p ? 'bg-medical-900 text-white' : 'bg-medical-100 text-medical-500 hover:bg-medical-200'">{{ p }}</button>
+        </div>
+        <input v-model="importLink" :placeholder="importPlaceholder" @keyup.enter="doImport"
+               class="w-full border border-medical-200 p-2.5 text-sm bg-medical-50 outline-none focus:border-accent mb-3 font-sans" />
+        <button @click="doImport" :disabled="importing"
+                class="w-full bg-medical-900 text-white font-bold py-2.5 hover:bg-accent transition-colors chamfer-br font-sans"
+                :class="{ 'opacity-50 cursor-not-allowed': importing }">
+          {{ importing ? '导入中…' : '导入' }}
+        </button>
+        <p class="text-[10px] font-mono text-medical-400 mt-2">支持贴完整分享链接或纯歌单 ID；重复歌曲自动跳过</p>
+      </div>
+    </div>
+
+    <!-- 导出弹窗：JSON/TXT 全部 + 按平台 -->
+    <div v-if="showExportModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="showExportModal = false">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-sm p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-black text-medical-900">导出歌单</h3>
+          <button @click="showExportModal = false" class="text-medical-400 hover:text-medical-900 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="space-y-2">
+          <button @click="exportOption('json')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <FileJson class="w-4 h-4 text-medical-400 flex-shrink-0" /> JSON（全部，原格式）
+          </button>
+          <button @click="exportOption('txt')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <FileText class="w-4 h-4 text-medical-400 flex-shrink-0" /> TXT（全部，原格式）
+          </button>
+          <button @click="exportOption('platform', 'netease')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">网</span> 网易云平台的歌（网易云可导入格式）
+          </button>
+          <button @click="exportOption('platform', 'qq')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">Q</span> QQ平台的歌（格式同网易云）
+          </button>
+          <button @click="exportOption('platform', 'kugou')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">K</span> 酷狗平台的歌（格式同网易云）
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -298,7 +350,8 @@ import {
   FileJson, FileText, Loader2, Image as ImageIcon
 } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
-import { ArrowUp, ArrowDown } from 'lucide-vue-next';
+import client from '../api/client';
+import { ArrowUp, ArrowDown, Upload, Download } from 'lucide-vue-next';
 import { usePlayerStore } from '../stores/player';
 import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';
@@ -317,6 +370,95 @@ const { success, error, info } = useToast();
 
 const selected = ref(null);
 const showCoverModal = ref(false);
+const showImportModal = ref(false);
+const showExportModal = ref(false);
+const importPlatform = ref('netease');
+const importLink = ref('');
+const importing = ref(false);
+
+const importPlaceholder = computed(() => ({
+  netease: '网易云歌单链接或 ID，如 https://y.music.163.com/m/playlist?id=10102603929',
+  qq: 'QQ 歌单链接或 ID（仅支持数字 ID）',
+  kugou: '酷狗歌单链接或 ID，如 https://www.kugou.com/yy/special/single/xxx.html',
+}[importPlatform.value]));
+
+// 链接/ID 解析（支持完整链接与裸 ID；QQ 字母 mid 不支持）
+const parsePlaylistId = (text, platform) => {
+  const t = (text || '').trim();
+  if (platform === 'netease') {
+    const m = t.match(/(?:playlist\?id=|playlist\/)(\d+)/);
+    return m ? m[1] : (/^\d+$/.test(t) ? t : null);
+  }
+  if (platform === 'qq') {
+    const m = t.match(/playlist\/([A-Za-z0-9]+)/);
+    if (m) return /^\d+$/.test(m[1]) ? m[1] : null;
+    return /^\d+$/.test(t) ? t : null;
+  }
+  if (platform === 'kugou') {
+    const m = t.match(/special\/single\/(\d+)/);
+    return m ? m[1] : (/^\d+$/.test(t) ? t : null);
+  }
+  return null;
+};
+
+// 循环分页拉全歌单歌曲（网易云 1000/页，QQ 50/页，酷狗 100/页上限）
+const fetchAllSongs = async (platform, id) => {
+  const songs = [];
+  const pageSize = platform === 'netease' ? 1000 : platform === 'qq' ? 50 : 100;
+  let offset = 0;
+  while (true) {
+    const batch = await client.get(`/api/playlist/songs/${platform}/${id}?offset=${offset}&limit=${pageSize}`);
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    songs.push(...batch);
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+    if (songs.length >= 5000) break; // 安全上限
+  }
+  return songs;
+};
+
+const doImport = async () => {
+  if (!selected.value) return;
+  const id = parsePlaylistId(importLink.value, importPlatform.value);
+  if (!id) { error('无法识别歌单链接，请检查后重试'); return; }
+  importing.value = true;
+  try {
+    const songs = await fetchAllSongs(importPlatform.value, id);
+    if (!songs.length) { info('未拉到歌曲（该平台音源可能不可用或未配置 Cookie）'); return; }
+    const res = await playlistStore.importSongs(selected.value.id, songs);
+    const added = Number(res?.added) || songs.length;
+    success(`导入成功 ${added} 首（跳过重复 ${songs.length - added} 首）`);
+    showImportModal.value = false;
+    importLink.value = '';
+  } catch (e) {
+    error(e?.response?.data?.message || e.message || '导入失败');
+  } finally {
+    importing.value = false;
+  }
+};
+
+// 导出：json/txt 走后端接口；平台 TXT 前端过滤生成（歌名 - 歌手，多歌手取第一个，网易云可导入格式）
+const exportOption = async (kind, platform) => {
+  if (!selected.value) return;
+  if (kind === 'json' || kind === 'txt') {
+    handleExport(kind);
+    showExportModal.value = false;
+    return;
+  }
+  const items = playlistStore.items.filter(i => i.music.platform === platform);
+  if (!items.length) { info(`该歌单没有 ${platform} 平台的歌曲`); return; }
+  const lines = items.map(i => `${i.music.name} - ${(i.music.artists && i.music.artists[0]) || '未知歌手'}`);
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${selected.value.name}-${platform}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+  success(`已导出 ${items.length} 首 ${platform} 歌曲`);
+  showExportModal.value = false;
+};
 const categoryFilter = ref('');
 const showCreate = ref(false);
 const showEdit = ref(false);

@@ -36,6 +36,11 @@ public record PlayerState(
             boolean bilibiliEnabled,
             boolean qqEnabled,
             boolean kugouEnabled,
+            // 频道级音源开关（ChannelConfig source_xxx_enabled；频道管理里切换后广播，搜索弹窗按此过滤）
+            boolean neteaseSourceEnabled,
+            boolean bilibiliSourceEnabled,
+            boolean qqSourceEnabled,
+            boolean kugouSourceEnabled,
             boolean voteSkipEnabled,
             double voteSkipThreshold,
             int voteSkipWaitTime

@@ -195,6 +195,9 @@ const playerStore = usePlayerStore();
 const pickerMusic = ref(null);
 
 const isPlatformEnabled = (p) => {
+  // 频道级音源开关优先（频道管理里切换后实时联动）；未广播时回退全局开关
+  const src = playerStore.config?.[`${p}SourceEnabled`];
+  if (src !== undefined) return src !== false;
   if (p === 'netease') return playerStore.config?.neteaseEnabled !== false;
   if (p === 'bilibili') return playerStore.config?.bilibiliEnabled !== false;
   if (p === 'qq') return playerStore.config?.qqEnabled !== false;

@@ -57,6 +57,11 @@ export const usePlayerStore = defineStore('player', () => {
         maxChatMessageLength: 200,
         neteaseEnabled: true,
         bilibiliEnabled: true,
+        // 频道级音源开关（后端 PlayerState 广播，频道管理切换后实时同步）
+        neteaseSourceEnabled: true,
+        bilibiliSourceEnabled: true,
+        qqSourceEnabled: true,
+        kugouSourceEnabled: true,
         voteSkipEnabled: false,
         voteSkipThreshold: 0.5,
         voteSkipWaitTime: 15

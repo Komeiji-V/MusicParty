@@ -315,6 +315,10 @@ public class MusicPlayerService {
                         appProperties.getMusicApi().getBilibili().isEnabled(),
                         appProperties.getMusicApi().getQq().isEnabled(),
                         appProperties.getMusicApi().getKugou().isEnabled(),
+                        isChannelSourceEnabled(channelId, "netease"),
+                        isChannelSourceEnabled(channelId, "bilibili"),
+                        isChannelSourceEnabled(channelId, "qq"),
+                        isChannelSourceEnabled(channelId, "kugou"),
                         cs.isVoteSkipEnabled.get(),
                         cs.voteSkipThreshold.get(),
                         cs.voteSkipWaitTime.get()
@@ -1176,6 +1180,12 @@ public class MusicPlayerService {
                 .filter(u -> channelSessions.contains(u.sessionId()))
                 .map(UserSummary::token)
                 .collect(Collectors.toSet());
+    }
+
+    /** 频道音源开关：ChannelConfig source_{platform}_enabled，未配置默认启用 */
+    private boolean isChannelSourceEnabled(Long channelId, String platform) {
+        String v = channelService.getChannelConfig(channelId, "source_" + platform + "_enabled");
+        return v == null || Boolean.parseBoolean(v);
     }
 
     private List<UserSummary> getChannelOnlineUsers(Long channelId) {

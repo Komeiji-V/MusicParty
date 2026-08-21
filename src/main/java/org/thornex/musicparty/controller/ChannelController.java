@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.thornex.musicparty.config.SecurityConfig;
 import org.thornex.musicparty.entity.Channel;
 import org.thornex.musicparty.service.ChannelService;
+import org.thornex.musicparty.service.MusicPlayerService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class ChannelController {
 
     private final ChannelService channelService;
+    private final MusicPlayerService musicPlayerService;
 
     @PostMapping
     @PreAuthorize("isAuthenticated() and !hasRole('GUEST')")
@@ -132,6 +134,8 @@ public class ChannelController {
         }
 
         channelService.setChannelSource(id, platform, enabled, userId);
+        // 广播最新播放器状态（含频道音源开关），前端搜索弹窗/音源按钮实时联动
+        musicPlayerService.broadcastFullPlayerState(id);
         return ResponseEntity.ok(Map.of("message", "音源状态已更新"));
     }
 

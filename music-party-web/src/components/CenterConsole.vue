@@ -572,7 +572,7 @@ onUnmounted(() => {
    transform-origin: left center → 左对齐点不动，无横向位移 */
 .lyric-swap-center-enter-active,
 .lyric-swap-center-leave-active {
-  transition: opacity 0.6s cubic-bezier(.22, 1, .36, 1), transform 0.6s cubic-bezier(.22, 1, .36, 1);
+  transition: opacity 0.4s cubic-bezier(.22, 1, .36, 1), transform 0.4s cubic-bezier(.22, 1, .36, 1);
   transform-origin: left center;
 }
 .lyric-swap-center-enter-from {
@@ -585,7 +585,7 @@ onUnmounted(() => {
 }
 .lyric-swap-side-enter-active,
 .lyric-swap-side-leave-active {
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
   transform-origin: left center;
 }
 .lyric-swap-side-enter-from {

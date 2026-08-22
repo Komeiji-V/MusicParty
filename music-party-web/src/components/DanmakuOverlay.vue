@@ -63,6 +63,7 @@ const pushDanmaku = (msg) => {
   el.style.top = y + 'px';
   const titleSpan = document.createElement('span');
   titleSpan.className = 'dk-title';
+  titleSpan.style.color = user?.titleColor || '#ff5722'; // 称号外观：直接用称号定义的颜色
   titleSpan.textContent = title ? title + ' ' : '';
   const textNode = document.createElement('span');
   textNode.textContent = `${name} 说：${text}`;
@@ -105,8 +106,8 @@ onBeforeUnmount(() => {
   font-weight: 700;
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  background: rgba(17, 24, 39, 0.62);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  background: rgba(17, 24, 39, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   animation-name: danmaku-fly;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
@@ -116,7 +117,7 @@ onBeforeUnmount(() => {
   animation: none !important;
 }
 .dk-title {
-  color: #f97316;
+  font-weight: 800;
 }
 @keyframes danmaku-fly {
   from { transform: translateX(0); }

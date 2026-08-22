@@ -134,11 +134,13 @@
                 <button @click="showCoverModal = true" title="设置封面" class="px-2.5 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1 rounded-sm font-sans">
                   <ImageIcon class="w-3.5 h-3.5" />
                 </button>
-                <button @click="handleExport('json')" title="导出 JSON" class="px-2.5 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1 rounded-sm font-sans">
-                  <FileJson class="w-3.5 h-3.5" />
+                <button @click="showImportModal = true" title="从网易云/QQ/酷狗歌单链接导入"
+                        class="px-2.5 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1 rounded-sm font-sans">
+                  <Download class="w-3.5 h-3.5" /> 导入
                 </button>
-                <button @click="handleExport('txt')" title="导出 TXT" class="px-2.5 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1 rounded-sm font-sans">
-                  <FileText class="w-3.5 h-3.5" />
+                <button @click="showExportModal = true" title="导出（JSON/TXT/按平台）"
+                        class="px-2.5 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1 rounded-sm font-sans">
+                  <Upload class="w-3.5 h-3.5" /> 导出
                 </button>
                 <button @click="confirmDelete" class="px-2.5 py-2 border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors flex items-center gap-1 rounded-sm font-sans">
                   <Trash2 class="w-3.5 h-3.5" />
@@ -278,13 +280,64 @@
       @updated="onCoverUpdated"
     />
   </div>
-</template>
+
+    <!-- 导入弹窗：网易云/QQ/酷狗歌单链接 -->
+    <div v-if="showImportModal" class="fixed inset-0 z-[130] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="showImportModal = false">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-md p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-black text-medical-900">从音源歌单导入</h3>
+          <button @click="showImportModal = false" class="text-medical-400 hover:text-medical-900 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="flex gap-1 mb-4">
+          <button v-for="p in ['netease', 'qq', 'kugou']" :key="p" @click="importPlatform = p"
+                  class="px-4 py-1.5 text-xs font-bold uppercase transition-colors"
+                  :class="importPlatform === p ? 'bg-medical-900 text-white' : 'bg-medical-100 text-medical-500 hover:bg-medical-200'">{{ p }}</button>
+        </div>
+        <input v-model="importLink" :placeholder="importPlaceholder" @keyup.enter="doImport"
+               class="w-full border border-medical-200 p-2.5 text-sm bg-medical-50 outline-none focus:border-accent mb-3 font-sans" />
+        <button @click="doImport" :disabled="importing"
+                class="w-full bg-medical-900 text-white font-bold py-2.5 hover:bg-accent transition-colors chamfer-br font-sans"
+                :class="{ 'opacity-50 cursor-not-allowed': importing }">
+          {{ importing ? '导入中…' : '导入' }}
+        </button>
+        <p class="text-[10px] font-mono text-medical-400 mt-2">支持贴完整分享链接或纯歌单 ID；重复歌曲自动跳过</p>
+      </div>
+    </div>
+
+    <!-- 导出弹窗：JSON/TXT 全部 + 按平台 -->
+    <div v-if="showExportModal" class="fixed inset-0 z-[130] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="showExportModal = false">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-sm p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-black text-medical-900">导出歌单</h3>
+          <button @click="showExportModal = false" class="text-medical-400 hover:text-medical-900 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="space-y-2">
+          <button @click="exportOption('json')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <FileJson class="w-4 h-4 text-medical-400 flex-shrink-0" /> JSON（全部，原格式）
+          </button>
+          <button @click="exportOption('txt')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <FileText class="w-4 h-4 text-medical-400 flex-shrink-0" /> TXT（全部，原格式）
+          </button>
+          <button @click="exportOption('platform', 'netease')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">网</span> 网易云平台的歌（网易云可导入格式）
+          </button>
+          <button @click="exportOption('platform', 'qq')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">Q</span> QQ平台的歌（格式同网易云）
+          </button>
+          <button @click="exportOption('platform', 'kugou')" class="w-full flex items-center gap-2 px-3 py-2.5 border border-medical-200 text-sm font-bold text-medical-800 hover:border-accent hover:text-accent transition-colors text-left">
+            <span class="w-4 text-[10px] font-mono text-accent flex-shrink-0">K</span> 酷狗平台的歌（格式同网易云）
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <ToastNotification /></template>
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import {
   ListMusic, Plus, X, Pencil, Trash2, Play, PlusCircle, FileJson, FileText, Loader2, Image as ImageIcon
-, ArrowUp, ArrowDown } from 'lucide-vue-next';
+, ArrowUp, ArrowDown , Download, Upload } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
 import { usePlayerStore } from '../stores/player';
 import PlaylistCoverModal from './PlaylistCoverModal.vue';
@@ -293,6 +346,9 @@ import { formatDuration } from '../utils/format';
 import CoverImage from './CoverImage.vue';
 
 import { useConfirmStore } from '../stores/confirm'
+import client from '../api/client';
+import { parsePlaylistId, fetchAllSongs } from '../utils/playlistImport';
+import ToastNotification from './ToastNotification.vue';
 import SongListBrowser from './SongListBrowser.vue';
 
 const confirmStore = useConfirmStore()
@@ -306,6 +362,92 @@ const emit = defineEmits(['close']);
 const playlistStore = usePlaylistStore();
 const playerStore = usePlayerStore();
 const { success, error, info } = useToast();
+
+// === 导入/导出（与歌单页一致）===
+const showImportModal = ref(false);
+const showExportModal = ref(false);
+const importPlatform = ref('netease');
+const importLink = ref('');
+const importing = ref(false);
+
+const importPlaceholder = computed(() => ({
+  netease: '网易云歌单链接或 ID，如 https://y.music.163.com/m/playlist?id=10102603929',
+  qq: 'QQ 歌单链接或 ID（仅支持数字 ID）',
+  kugou: '酷狗歌单链接或 ID，如 https://www.kugou.com/yy/special/single/xxx.html',
+}[importPlatform.value]));
+
+// 频道音源检查：tab 全部显示，未开启音源时点导入给出提示（歌单弹窗无 WS，打开时拉频道详情）
+const channelSources = ref(null);
+const loadChannelSources = async () => {
+  const chId = playerStore.channelId || Number(localStorage.getItem('mp_channel_id')) || null;
+  if (!chId) { channelSources.value = null; return; }
+  try {
+    const d = await client.get(`/api/channels/${chId}`);
+    channelSources.value = d?.sources || null;
+  } catch (e) {
+    channelSources.value = null;
+  }
+};
+const importPlatformEnabled = (p) => {
+  if (channelSources.value && channelSources.value[p] !== undefined) return channelSources.value[p] !== false;
+  const src = playerStore.config?.[`${p}SourceEnabled`];
+  if (src !== undefined) return src !== false;
+  const global = playerStore.config?.[`${p}Enabled`];
+  return global !== false;
+};
+
+const doImport = async () => {
+  if (!selected.value) return;
+  if (!importPlatformEnabled(importPlatform.value)) {
+    error(`当前频道未开启该音源（${importPlatform.value}），无法导入`);
+    return;
+  }
+  const id = parsePlaylistId(importLink.value, importPlatform.value);
+  if (!id) { error('无法识别歌单链接，请检查后重试'); return; }
+  importing.value = true;
+  try {
+    const songs = await fetchAllSongs(importPlatform.value, id);
+    if (!songs.length) { info('未拉到歌曲（该平台音源可能不可用或未配置 Cookie）'); return; }
+    const res = await playlistStore.importSongs(selected.value.id, songs);
+    const added = Number(res?.added) || songs.length;
+    success(`导入成功 ${added} 首（跳过重复 ${songs.length - added} 首）`);
+    showImportModal.value = false;
+    importLink.value = '';
+  } catch (e) {
+    error(e?.response?.data?.message || e.message || '导入失败');
+  } finally {
+    importing.value = false;
+  }
+};
+
+// 导出：json/txt 走后端接口；平台 TXT 前端过滤生成
+const exportOption = async (kind, platform) => {
+  if (!selected.value) return;
+  if (kind === 'json' || kind === 'txt') {
+    handleExport(kind);
+    showExportModal.value = false;
+    return;
+  }
+  const items = playlistStore.items.filter(i => i.music.platform === platform);
+  if (!items.length) { info(`该歌单没有 ${platform} 平台的歌曲`); return; }
+  const lines = items.map(i => `${i.music.name} - ${(i.music.artists && i.music.artists[0]) || '未知歌手'}`);
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${selected.value.name}-${platform}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+  success(`已导出 ${items.length} 首 ${platform} 歌曲`);
+  showExportModal.value = false;
+};
+
+// 打开导入弹窗时拉取频道音源（展示提示用）
+const openImportModal = () => {
+  showImportModal.value = true;
+  loadChannelSources();
+};
 
 const selected = ref(null);
 const categoryFilter = ref('');

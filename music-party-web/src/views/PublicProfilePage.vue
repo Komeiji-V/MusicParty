@@ -172,21 +172,24 @@
         <div class="flex-1 overflow-y-auto p-3 bg-medical-50">
           <div v-if="playlistSongsLoading" class="text-center py-8 text-xs font-mono text-medical-400">LOADING...</div>
           <div v-else-if="playlistSongs.length === 0" class="text-center py-8 text-xs font-mono text-medical-400">该歌单暂无歌曲</div>
-          <div v-else class="space-y-1">
-            <div v-for="(song, i) in playlistSongs" :key="i" class="flex items-center gap-3 p-2 bg-white border border-medical-100">
-              <span class="w-6 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ i + 1 }}</span>
-              <div class="w-9 h-9 bg-medical-100 flex-shrink-0 relative overflow-hidden">
-                <img v-if="song.coverUrl" :src="song.coverUrl" class="w-full h-full object-cover" alt="" />
-                <Music2 v-else class="w-4 h-4 text-medical-400 absolute inset-0 m-auto" />
+          <!-- 仿歌单页：自选排序（首字母正/倒序×分/不分平台）+ 平台筛选 + 搜索 + 首字母索引 -->
+          <SongListBrowser v-else :items="playlistBrowserItems" class="h-full">
+            <template #row="{ item, index }">
+              <div class="flex items-center gap-3 p-2 bg-white border border-medical-100">
+                <span class="w-6 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ index + 1 }}</span>
+                <div class="w-9 h-9 bg-medical-100 flex-shrink-0 relative overflow-hidden">
+                  <img v-if="item.music.coverUrl" :src="item.music.coverUrl" class="w-full h-full object-cover" alt="" />
+                  <Music2 v-else class="w-4 h-4 text-medical-400 absolute inset-0 m-auto" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-bold text-medical-800 truncate">{{ item.music.name }}</div>
+                  <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
+                </div>
+                <span class="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-sm flex-shrink-0"
+                      :class="platformBadge(item.music.platform).cls">{{ platformBadge(item.music.platform).label }}</span>
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-medical-800 truncate">{{ song.name }}</div>
-                <div class="text-xs text-medical-500 truncate">{{ (song.artists || []).join(' / ') || '未知歌手' }}</div>
-              </div>
-              <span class="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-sm flex-shrink-0"
-                    :class="platformBadge(song.platform).cls">{{ platformBadge(song.platform).label }}</span>
-            </div>
-          </div>
+            </template>
+          </SongListBrowser>
         </div>
       </div>
     </div>
@@ -199,6 +202,7 @@ import { Share2, ListMusic, Music2, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import client from '../api/client'
+import SongListBrowser from '../components/SongListBrowser.vue';
 import { useToast } from '../composables/useToast'
 import ToastNotification from '../components/ToastNotification.vue'
 import { titleTextColor } from '../utils/titleColor'
@@ -237,6 +241,10 @@ const openPlaylist = async (pl) => {
     playlistSongsLoading.value = false
   }
 }
+
+// SongListBrowser 需要的结构：{ itemId, music }
+const playlistBrowserItems = computed(() =>
+    playlistSongs.value.map((song, i) => ({ itemId: 'pub-' + i, music: song })))
 
 const platformBadge = (platform) => ({
   netease: { label: 'N', cls: 'text-red-600 bg-red-100' },

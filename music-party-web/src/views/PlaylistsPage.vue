@@ -342,7 +342,7 @@ import {
 } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
 import client from '../api/client';
-import { Upload, Download } from 'lucide-vue-next';
+import { Upload, Download, ArrowUp, ArrowDown } from 'lucide-vue-next';
 import { usePlayerStore } from '../stores/player';
 import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';

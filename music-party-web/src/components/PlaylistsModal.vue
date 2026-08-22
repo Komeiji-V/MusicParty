@@ -49,9 +49,19 @@
             <div
                 v-for="pl in filteredPlaylists" :key="pl.id"
                 @click="selectPlaylist(pl)"
-                class="p-3 border transition-all cursor-pointer group"
+                class="relative p-3 border transition-all cursor-pointer group"
                 :class="selected?.id === pl.id ? 'border-accent bg-medical-50 shadow-sm' : 'border-medical-200 hover:border-medical-300 bg-white'"
             >
+              <div class="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), -1)" title="上移"
+                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
+                  <ArrowUp class="w-3.5 h-3.5" />
+                </button>
+                <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), 1)" title="下移"
+                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
+                  <ArrowDown class="w-3.5 h-3.5" />
+                </button>
+              </div>
               <div class="flex items-center gap-3">
                 <div class="w-11 h-11 bg-medical-200 flex-shrink-0 overflow-hidden relative">
                   <CoverImage :src="pl.coverUrl" class="w-full h-full" />
@@ -274,7 +284,7 @@
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import {
   ListMusic, Plus, X, Pencil, Trash2, Play, PlusCircle, FileJson, FileText, Loader2, Image as ImageIcon
-} from 'lucide-vue-next';
+, ArrowUp, ArrowDown } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
 import { usePlayerStore } from '../stores/player';
 import PlaylistCoverModal from './PlaylistCoverModal.vue';
@@ -304,6 +314,18 @@ const showCreate = ref(false);
 const showEdit = ref(false);
 const customCategory = ref('');
 const form = ref({ name: '', category: '', isPublic: false });
+
+// 歌单列表自定义排序：上移/下移（按当前过滤视图顺序重排，未过滤的保持相对顺序）
+const movePlaylist = async (idx, dir) => {
+  if (idx < 0) return;
+  const view = [...filteredPlaylists.value];
+  const j = idx + dir;
+  if (j < 0 || j >= view.length) return;
+  [view[idx], view[j]] = [view[j], view[idx]];
+  const viewIds = new Set(view.map(p => p.id));
+  const rest = playlistStore.playlists.filter(p => !viewIds.has(p.id));
+  await playlistStore.reorderPlaylists([...view.map(p => p.id), ...rest.map(p => p.id)]);
+};
 
 const filteredPlaylists = computed(() => {
   if (!categoryFilter.value) return playlistStore.playlists;

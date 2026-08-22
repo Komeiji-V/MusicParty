@@ -153,6 +153,15 @@ const handleSearchClick = () => {
           <Minimize2 class="w-4 h-4" />
         </button>
 
+        <!-- 弹幕开关（桌面） -->
+        <button
+            @click="chatStore.toggleDanmaku()"
+            :title="chatStore.danmakuEnabled ? '关闭弹幕' : '开启弹幕'"
+            class="hidden md:flex items-center justify-center w-9 h-9 md:w-10 md:h-9 border transition-all rounded-sm"
+            :class="chatStore.danmakuEnabled ? 'border-accent bg-accent/10 text-accent' : 'border-medical-200 bg-medical-50 text-medical-400'"
+        >
+          <Captions class="w-4 h-4" />
+        </button>
         <!-- 搜索按钮 -->
         <button id="tutorial-search" @click="handleSearchClick" class="flex items-center justify-center w-9 h-9 md:w-auto md:h-9 md:px-4 border border-accent bg-accent hover:bg-accent-hover font-bold text-sm text-white transition-all rounded-sm gap-2">
           <Search class="w-4 h-4" />

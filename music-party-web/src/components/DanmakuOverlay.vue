@@ -93,7 +93,8 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style scoped>
+<!-- 注意：必须用全局样式（非 scoped）——弹幕元素是 createElement 原生创建，无 data-v 属性，scoped 选择器匹配不到 -->
+<style>
 .dk-item {
   position: absolute;
   left: 100%;

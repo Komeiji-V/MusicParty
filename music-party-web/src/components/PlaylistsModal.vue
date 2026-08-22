@@ -145,35 +145,36 @@
                 EMPTY PLAYLIST — 从搜索页收藏歌曲到此处
               </div>
 
-              <div v-else class="space-y-1">
-                <div v-for="(item, idx) in playlistStore.items" :key="item.itemId"
-                     class="flex items-center p-2.5 bg-white border border-medical-200 hover:border-medical-300 hover:shadow-sm transition-all group">
-                  <span class="w-7 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ idx + 1 }}</span>
-                  <div class="w-10 h-10 bg-medical-200 flex-shrink-0 relative overflow-hidden ml-2">
-                    <CoverImage :src="item.music.coverUrl" class="w-full h-full" />
+              <SongListBrowser v-else :items="playlistStore.items" class="h-full">
+                <template #row="{ item, index }">
+                  <div class="flex items-center p-2.5 bg-white hover:bg-medical-50 transition-colors group">
+                    <span class="w-7 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ index + 1 }}</span>
+                    <div class="w-10 h-10 bg-medical-200 flex-shrink-0 relative overflow-hidden ml-2">
+                      <CoverImage :src="item.music.coverUrl" class="w-full h-full" />
+                    </div>
+                    <div class="flex-1 min-w-0 ml-3">
+                      <div class="text-sm font-bold truncate">{{ item.music.name }}</div>
+                      <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
+                    </div>
+                    <div class="flex-shrink-0 ml-2">
+                      <span class="px-1.5 py-0.5 text-xs font-mono font-bold rounded-sm" :class="platformBadge(item.music.platform).cls">
+                        {{ platformBadge(item.music.platform).label }}
+                      </span>
+                    </div>
+                    <div class="hidden md:block w-16 text-right text-xs font-mono text-medical-400 ml-2 flex-shrink-0">
+                      {{ formatDuration(item.music.duration) }}
+                    </div>
+                    <button @click="enqueueOne(item.music)" title="点歌"
+                            class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
+                      <PlusCircle class="w-5 h-5" />
+                    </button>
+                    <button @click="handleRemove(item)" title="移除"
+                            class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
+                      <X class="w-5 h-5" />
+                    </button>
                   </div>
-                  <div class="flex-1 min-w-0 ml-3">
-                    <div class="text-sm font-bold truncate">{{ item.music.name }}</div>
-                    <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
-                  </div>
-                  <div class="flex-shrink-0 ml-2">
-                    <span class="px-1.5 py-0.5 text-xs font-mono font-bold rounded-sm" :class="platformBadge(item.music.platform).cls">
-                      {{ platformBadge(item.music.platform).label }}
-                    </span>
-                  </div>
-                  <div class="hidden md:block w-16 text-right text-xs font-mono text-medical-400 ml-2 flex-shrink-0">
-                    {{ formatDuration(item.music.duration) }}
-                  </div>
-                  <button @click="enqueueOne(item.music)" title="点歌"
-                          class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
-                    <PlusCircle class="w-5 h-5" />
-                  </button>
-                  <button @click="handleRemove(item)" title="移除"
-                          class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
-                    <X class="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+                </template>
+              </SongListBrowser>
             </div>
           </template>
         </main>
@@ -282,6 +283,7 @@ import { formatDuration } from '../utils/format';
 import CoverImage from './CoverImage.vue';
 
 import { useConfirmStore } from '../stores/confirm'
+import SongListBrowser from './SongListBrowser.vue';
 
 const confirmStore = useConfirmStore()
 const confirm = (message, title = '确认操作', danger = true) => confirmStore.ask({ title, message, danger })

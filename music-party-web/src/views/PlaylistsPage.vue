@@ -161,43 +161,36 @@
               EMPTY PLAYLIST — 从搜索页收藏歌曲到此处
             </div>
 
-            <div v-else class="space-y-1">
-              <div v-for="(item, idx) in playlistStore.items" :key="item.itemId"
-                   class="flex items-center p-3 bg-white border border-medical-200 hover:border-medical-300 hover:shadow-sm transition-all group">
-                <span class="w-8 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ idx + 1 }}</span>
-                <div class="w-10 h-10 bg-medical-200 flex-shrink-0 relative overflow-hidden ml-2">
-                  <CoverImage :src="item.music.coverUrl" class="w-full h-full" />
+            <SongListBrowser v-else :items="playlistStore.items" class="h-full">
+              <template #row="{ item, index }">
+                <div class="flex items-center p-2.5 bg-white hover:bg-medical-50 transition-colors group">
+                  <span class="w-8 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ index + 1 }}</span>
+                  <div class="w-10 h-10 bg-medical-200 flex-shrink-0 relative overflow-hidden ml-2">
+                    <CoverImage :src="item.music.coverUrl" class="w-full h-full" />
+                  </div>
+                  <div class="flex-1 min-w-0 ml-3">
+                    <div class="text-sm font-bold truncate">{{ item.music.name }}</div>
+                    <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
+                  </div>
+                  <div class="flex-shrink-0 ml-2">
+                    <span class="px-1.5 py-0.5 text-xs font-mono font-bold rounded-sm" :class="platformBadge(item.music.platform).cls">
+                      {{ platformBadge(item.music.platform).label }}
+                    </span>
+                  </div>
+                  <div class="hidden md:block w-16 text-right text-xs font-mono text-medical-400 ml-2 flex-shrink-0">
+                    {{ formatDuration(item.music.duration) }}
+                  </div>
+                  <button @click="enqueueOne(item.music)" title="点歌"
+                          class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
+                    <PlusCircle class="w-5 h-5" />
+                  </button>
+                  <button @click="handleRemove(item)" title="移除"
+                          class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
+                    <X class="w-5 h-5" />
+                  </button>
                 </div>
-                <div class="flex-1 min-w-0 ml-3">
-                  <div class="text-sm font-bold truncate">{{ item.music.name }}</div>
-                  <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
-                </div>
-                <div class="flex-shrink-0 ml-2">
-                  <span class="px-1.5 py-0.5 text-xs font-mono font-bold rounded-sm" :class="platformBadge(item.music.platform).cls">
-                    {{ platformBadge(item.music.platform).label }}
-                  </span>
-                </div>
-                <div class="hidden md:block w-16 text-right text-xs font-mono text-medical-400 ml-2 flex-shrink-0">
-                  {{ formatDuration(item.music.duration) }}
-                </div>
-                <button @click="enqueueOne(item.music)" title="点歌"
-                        class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
-                  <PlusCircle class="w-5 h-5" />
-                </button>
-                <button @click="moveItem(idx, -1)" title="上移"
-                        class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
-                  <ArrowUp class="w-4 h-4" />
-                </button>
-                <button @click="moveItem(idx, 1)" title="下移"
-                        class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
-                  <ArrowDown class="w-4 h-4" />
-                </button>
-                <button @click="handleRemove(item)" title="移除"
-                        class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
-                  <X class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+              </template>
+            </SongListBrowser>
           </div>
         </template>
       </main>
@@ -353,7 +346,7 @@ import {
 } from 'lucide-vue-next';
 import { usePlaylistStore } from '../stores/playlist';
 import client from '../api/client';
-import { ArrowUp, ArrowDown, Upload, Download } from 'lucide-vue-next';
+import { Upload, Download } from 'lucide-vue-next';
 import { usePlayerStore } from '../stores/player';
 import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';
@@ -361,6 +354,7 @@ import { parsePlaylistId, fetchAllSongs } from '../utils/playlistImport';
 import CoverImage from '../components/CoverImage.vue';
 import PlaylistCoverModal from '../components/PlaylistCoverModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
+import SongListBrowser from '../components/SongListBrowser.vue';
 
 import { useConfirmStore } from '../stores/confirm'
 
@@ -589,15 +583,6 @@ const movePlaylist = async (idx, dir) => {
   const viewIds = new Set(view.map(p => p.id));
   const rest = playlistStore.playlists.filter(p => !viewIds.has(p.id));
   await playlistStore.reorderPlaylists([...view.map(p => p.id), ...rest.map(p => p.id)]);
-};
-
-// 歌单内歌曲上移/下移
-const moveItem = async (idx, dir) => {
-  const list = [...playlistStore.items];
-  const j = idx + dir;
-  if (j < 0 || j >= list.length) return;
-  [list[idx], list[j]] = [list[j], list[idx]];
-  await playlistStore.reorderItems(selected.value.id, list.map(i => i.itemId));
 };
 
 const handleRemove = async (item) => {

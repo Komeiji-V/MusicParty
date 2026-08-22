@@ -23,24 +23,26 @@
         <template v-if="mode === 'song'">
           <div v-if="!selectedPlaylistId" class="text-center py-10 text-xs font-mono text-medical-400">请先选择一个歌单</div>
           <div v-else-if="items.length === 0" class="text-center py-10 text-xs font-mono text-medical-400">该歌单还没有歌曲</div>
-          <div v-else class="space-y-1">
-            <div
-              v-for="item in items"
-              :key="item.itemId"
-              @click="emit('select', item)"
-              class="flex items-center gap-3 p-2 border border-medical-100 bg-white hover:border-accent cursor-pointer transition-all group"
-            >
-              <div class="w-10 h-10 bg-medical-100 flex-shrink-0 relative overflow-hidden">
-                <img v-if="item.music.coverUrl" :src="item.music.coverUrl" class="w-full h-full object-cover" alt="" />
-                <Music2 v-else class="w-4 h-4 text-medical-400 absolute inset-0 m-auto" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold text-medical-800 truncate group-hover:text-accent">{{ item.music.name }}</div>
-                <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
-                <div v-if="item.music.album" class="text-xs font-mono text-medical-400 truncate">专辑：{{ item.music.album }}</div>
-              </div>
-              <Check class="w-4 h-4 text-accent opacity-0 group-hover:opacity-100 flex-shrink-0" />
-            </div>
+          <div v-else class="min-h-0 flex-1">
+            <SongListBrowser :items="items" class="h-full">
+              <template #row="{ item }">
+                <div
+                  @click="emit('select', item)"
+                  class="flex items-center gap-3 p-2 bg-white hover:bg-accent/5 cursor-pointer transition-colors group"
+                >
+                  <div class="w-10 h-10 bg-medical-100 flex-shrink-0 relative overflow-hidden">
+                    <img v-if="item.music.coverUrl" :src="item.music.coverUrl" class="w-full h-full object-cover" alt="" />
+                    <Music2 v-else class="w-4 h-4 text-medical-400 absolute inset-0 m-auto" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-bold text-medical-800 truncate group-hover:text-accent">{{ item.music.name }}</div>
+                    <div class="text-xs text-medical-500 truncate">{{ (item.music.artists || []).join(' / ') || '未知歌手' }}</div>
+                    <div v-if="item.music.album" class="text-xs font-mono text-medical-400 truncate">专辑：{{ item.music.album }}</div>
+                  </div>
+                  <Check class="w-4 h-4 text-accent opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                </div>
+              </template>
+            </SongListBrowser>
           </div>
         </template>
 
@@ -77,6 +79,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { X, Music2, Disc3, Check } from 'lucide-vue-next'
 import { usePlaylistStore } from '../stores/playlist'
+import SongListBrowser from './SongListBrowser.vue';
 
 const props = defineProps({
   title: { type: String, default: '选择歌曲' },

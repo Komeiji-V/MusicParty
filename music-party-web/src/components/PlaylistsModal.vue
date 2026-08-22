@@ -54,12 +54,12 @@
             >
               <div class="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), -1)" title="上移"
-                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
-                  <ArrowUp class="w-3.5 h-3.5" />
+                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-400 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-800">
+                  <ArrowUp class="w-4 h-4" />
                 </button>
                 <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), 1)" title="下移"
-                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
-                  <ArrowDown class="w-3.5 h-3.5" />
+                        class="w-6 h-6 flex items-center justify-center bg-white border border-medical-400 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-800">
+                  <ArrowDown class="w-4 h-4" />
                 </button>
               </div>
               <div class="flex items-center gap-3">

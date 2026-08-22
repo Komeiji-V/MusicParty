@@ -127,7 +127,8 @@
             <div
               v-for="pl in publicPlaylists"
               :key="pl.id"
-              class="bg-white border border-medical-200 chamfer-br p-4 group"
+              @click="openPlaylist(pl)"
+              class="bg-white border border-medical-200 chamfer-br p-4 group cursor-pointer hover:border-accent transition-colors"
             >
               <div class="flex items-center gap-3">
                 <div class="w-14 h-14 bg-medical-100 flex items-center justify-center flex-shrink-0 relative overflow-hidden">
@@ -156,12 +157,45 @@
 
     <ToastNotification />
   </div>
+
+    <!-- 公开歌单内容弹窗 -->
+    <div v-if="playlistModal" class="fixed inset-0 z-[130] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="playlistModal = null">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+        <div class="p-4 bg-medical-900 text-white flex justify-between items-center flex-shrink-0">
+          <div class="flex items-center gap-2 min-w-0">
+            <ListMusic class="w-4 h-4 text-accent flex-shrink-0" />
+            <span class="text-sm font-bold truncate">{{ playlistModal.name }}</span>
+            <span class="text-[10px] font-mono text-white/50 flex-shrink-0">{{ playlistSongs.length }} TRACKS</span>
+          </div>
+          <button @click="playlistModal = null" class="text-white/70 hover:text-white transition-colors flex-shrink-0"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 bg-medical-50">
+          <div v-if="playlistSongsLoading" class="text-center py-8 text-xs font-mono text-medical-400">LOADING...</div>
+          <div v-else-if="playlistSongs.length === 0" class="text-center py-8 text-xs font-mono text-medical-400">该歌单暂无歌曲</div>
+          <div v-else class="space-y-1">
+            <div v-for="(song, i) in playlistSongs" :key="i" class="flex items-center gap-3 p-2 bg-white border border-medical-100">
+              <span class="w-6 text-right text-xs font-mono text-medical-300 flex-shrink-0">{{ i + 1 }}</span>
+              <div class="w-9 h-9 bg-medical-100 flex-shrink-0 relative overflow-hidden">
+                <img v-if="song.coverUrl" :src="song.coverUrl" class="w-full h-full object-cover" alt="" />
+                <Music2 v-else class="w-4 h-4 text-medical-400 absolute inset-0 m-auto" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-bold text-medical-800 truncate">{{ song.name }}</div>
+                <div class="text-xs text-medical-500 truncate">{{ (song.artists || []).join(' / ') || '未知歌手' }}</div>
+              </div>
+              <span class="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-sm flex-shrink-0"
+                    :class="platformBadge(song.platform).cls">{{ platformBadge(song.platform).label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Share2, ListMusic } from 'lucide-vue-next'
+import { Share2, ListMusic, Music2, X } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import client from '../api/client'
@@ -186,6 +220,31 @@ const notFound = ref(false)
 const loadError = ref(false)
 const loaded = ref(false)
 const publicPlaylists = ref([])
+const playlistModal = ref(null)
+const playlistSongs = ref([])
+const playlistSongsLoading = ref(false)
+
+const openPlaylist = async (pl) => {
+  playlistModal.value = pl
+  playlistSongs.value = []
+  playlistSongsLoading.value = true
+  try {
+    const data = await client.get(`/api/public/playlists/${pl.id}/items`)
+    playlistSongs.value = Array.isArray(data?.songs) ? data.songs : []
+  } catch (e) {
+    playlistSongs.value = []
+  } finally {
+    playlistSongsLoading.value = false
+  }
+}
+
+const platformBadge = (platform) => ({
+  netease: { label: 'N', cls: 'text-red-600 bg-red-100' },
+  qq: { label: 'Q', cls: 'text-green-700 bg-green-100' },
+  kugou: { label: 'K', cls: 'text-blue-600 bg-blue-100' },
+  bilibili: { label: 'B', cls: 'text-pink-600 bg-pink-100' },
+  default: { label: '?', cls: 'text-medical-500 bg-medical-100' },
+}[platform] || { label: '?', cls: 'text-medical-500 bg-medical-100' })
 const allTitles = ref([])
 const stats = ref({ likes: 0 })
 const featured = reactive({ widgets: [] })

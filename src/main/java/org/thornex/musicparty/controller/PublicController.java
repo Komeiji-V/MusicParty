@@ -2,6 +2,7 @@ package org.thornex.musicparty.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.thornex.musicparty.dto.Music;
@@ -50,6 +51,7 @@ public class PublicController {
     private final TitleDefRepository titleDefRepository;
     private final UserPlaylistRepository playlistRepository;
     private final PlaylistItemRepository playlistItemRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final NeteaseMusicProvider neteaseMusicProvider;
     private final org.thornex.musicparty.service.api.QQMusicProvider qqMusicProvider;
     private final org.thornex.musicparty.service.api.KugouMusicProvider kugouMusicProvider;
@@ -130,6 +132,37 @@ public class PublicController {
         return playlistRepository.findByUserIdAndIsPublic(user.getId(), true).stream()
                 .map(this::buildPlaylistCard)
                 .collect(Collectors.toList());
+    }
+
+    /** 公开歌单内容：仅允许访问 isPublic=true 的歌单，非公开返回 404（不暴露存在性） */
+    @GetMapping("/playlists/{id}/items")
+    public ResponseEntity<?> playlistItems(@PathVariable Long id) {
+        var playlistOpt = playlistRepository.findById(id);
+        if (playlistOpt.isEmpty() || !playlistOpt.get().isPublic()) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "歌单不存在"));
+        }
+        List<Map<String, Object>> songs = playlistItemRepository.findByPlaylistIdOrderByPosition(id).stream()
+                .map(item -> {
+                    org.thornex.musicparty.dto.Music music;
+                    try {
+                        music = objectMapper.readValue(item.getSongData(), org.thornex.musicparty.dto.Music.class);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                    if (music == null) return null;
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("name", music.name());
+                    m.put("artists", music.artists());
+                    m.put("coverUrl", music.coverUrl() != null ? music.coverUrl() : "");
+                    m.put("platform", music.platform());
+                    m.put("album", music.album());
+                    m.put("duration", music.duration());
+                    return m;
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(Map.of("playlistId", id, "songs", songs));
     }
 
     /** 公开主页：该用户获得的全部称号（含颜色），current 标记当前佩戴的称号 */

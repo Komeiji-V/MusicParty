@@ -72,12 +72,12 @@
                 </div>
                 <div class="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), -1)" title="上移"
-                          class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
-                    <ArrowUp class="w-3.5 h-3.5" />
+                          class="w-6 h-6 flex items-center justify-center bg-white border border-medical-400 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-800">
+                    <ArrowUp class="w-4 h-4" />
                   </button>
                   <button @click.stop="movePlaylist(filteredPlaylists.indexOf(pl), 1)" title="下移"
-                          class="w-6 h-6 flex items-center justify-center bg-white border border-medical-300 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-600">
-                    <ArrowDown class="w-3.5 h-3.5" />
+                          class="w-6 h-6 flex items-center justify-center bg-white border border-medical-400 shadow-sm hover:border-accent hover:text-accent transition-colors text-medical-800">
+                    <ArrowDown class="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -180,10 +180,6 @@
                   <div class="hidden md:block w-16 text-right text-xs font-mono text-medical-400 ml-2 flex-shrink-0">
                     {{ formatDuration(item.music.duration) }}
                   </div>
-                  <button @click="enqueueOne(item.music)" title="点歌"
-                          class="ml-2 p-2 text-medical-300 hover:text-accent transition-colors flex-shrink-0">
-                    <PlusCircle class="w-5 h-5" />
-                  </button>
                   <button @click="handleRemove(item)" title="移除"
                           class="p-2 text-medical-300 hover:text-red-500 transition-colors flex-shrink-0">
                     <X class="w-5 h-5" />

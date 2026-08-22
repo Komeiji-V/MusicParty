@@ -45,6 +45,13 @@
           >
             SEARCH
           </button>
+          <button
+              @click="showImportModal = true"
+              title="从网易云/QQ/酷狗歌单链接导入歌曲"
+              class="px-3 py-2 font-bold transition-colors text-xs md:text-sm flex-shrink-0 font-sans bg-medical-900 text-white hover:bg-medical-700"
+          >
+            导入歌单
+          </button>
         </div>
       </div>
 
@@ -178,12 +185,37 @@
       </div>
     </div>
   </div>
+
+    <!-- 导入歌单弹窗：网易云/QQ/酷狗链接拉取歌曲到结果列表（可逐首点歌） -->
+    <div v-if="showImportModal" class="fixed inset-0 z-[130] flex items-center justify-center bg-medical-900/60 backdrop-blur-sm p-4" @click.self="showImportModal = false">
+      <div class="bg-white border border-medical-200 shadow-2xl chamfer-br w-full max-w-md p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-black text-medical-900">导入歌单</h3>
+          <button @click="showImportModal = false" class="text-medical-400 hover:text-medical-900 transition-colors"><X class="w-5 h-5" /></button>
+        </div>
+        <div class="flex gap-1 mb-4">
+          <button v-for="p in ['netease', 'qq', 'kugou']" :key="p" @click="importPlatform = p"
+                  class="px-4 py-1.5 text-xs font-bold uppercase transition-colors"
+                  :class="importPlatform === p ? 'bg-medical-900 text-white' : 'bg-medical-100 text-medical-500 hover:bg-medical-200'">{{ p }}</button>
+        </div>
+        <input v-model="importLink" :placeholder="importPlaceholder" @keyup.enter="doImportToSongs"
+               class="w-full border border-medical-200 p-2.5 text-sm bg-medical-50 outline-none focus:border-accent mb-3 font-sans" />
+        <button @click="doImportToSongs" :disabled="importing"
+                class="w-full bg-medical-900 text-white font-bold py-2.5 hover:bg-accent transition-colors chamfer-br font-sans"
+                :class="{ 'opacity-50 cursor-not-allowed': importing }">
+          {{ importing ? '导入中…' : '导入到结果列表' }}
+        </button>
+        <p class="text-[10px] font-mono text-medical-400 mt-2">支持贴完整分享链接或纯歌单 ID；导入后显示在搜索结果中，点击即可点歌</p>
+      </div>
+    </div>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { usePlayerStore } from '../stores/player';
 import { useSearchLogic } from '../composables/useSearchLogic';
+import { parsePlaylistId, fetchAllSongs } from '../utils/playlistImport';
+import { useToast } from '../composables/useToast';
 import { usePlaylistLogic } from '../composables/usePlaylistLogic';
 import { X, Search, PlusCircle, ListPlus, Loader2, ArrowLeft, ChevronRight, Check, BookmarkPlus } from 'lucide-vue-next';
 import CoverImage from './CoverImage.vue';
@@ -193,6 +225,42 @@ const props = defineProps(['isOpen']);
 const emit = defineEmits(['close']);
 const playerStore = usePlayerStore();
 const pickerMusic = ref(null);
+
+// === 歌单导入（网易云/QQ/酷狗链接 → 结果列表）===
+const showImportModal = ref(false);
+const importPlatform = ref('netease');
+const importLink = ref('');
+const importing = ref(false);
+
+const importPlaceholder = computed(() => ({
+  netease: '网易云歌单链接或 ID，如 https://y.music.163.com/m/playlist?id=10102603929',
+  qq: 'QQ 歌单链接或 ID（仅支持数字 ID）',
+  kugou: '酷狗歌单链接或 ID，如 https://www.kugou.com/yy/special/single/xxx.html',
+}[importPlatform.value]));
+
+const doImportToSongs = async () => {
+  if (!isPlatformEnabled(importPlatform.value)) {
+    error(`当前频道未开启该音源（${importPlatform.value}），无法导入`);
+    return;
+  }
+  const id = parsePlaylistId(importLink.value, importPlatform.value);
+  if (!id) { error('无法识别歌单链接，请检查后重试'); return; }
+  importing.value = true;
+  try {
+    const imported = await fetchAllSongs(importPlatform.value, id);
+    if (!imported.length) { info('未拉到歌曲（该平台音源可能不可用或未配置 Cookie）'); return; }
+    songs.value = imported;
+    listMode.value = 'search';
+    keyword.value = `歌单导入: ${imported.length} 首`;
+    success(`已导入 ${imported.length} 首，点击歌曲即可点歌`);
+    showImportModal.value = false;
+    importLink.value = '';
+  } catch (e) {
+    error(e?.response?.data?.message || e.message || '导入失败');
+  } finally {
+    importing.value = false;
+  }
+};
 
 const isPlatformEnabled = (p) => {
   // 频道级音源开关优先（频道管理里切换后实时联动）；未广播时回退全局开关
@@ -209,6 +277,7 @@ const isPlatformEnabled = (p) => {
 const {
   platform, keyword, songs, loading, listMode, doSearch
 } = useSearchLogic(emit);
+const { success, error, info } = useToast();
 
 // 仅渲染当前频道启用的音源（频道管理里关掉的音源，搜索弹窗里直接隐藏）
 const enabledPlatforms = computed(() =>

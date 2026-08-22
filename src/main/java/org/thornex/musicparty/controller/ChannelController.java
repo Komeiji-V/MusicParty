@@ -67,6 +67,13 @@ public class ChannelController {
         result.put("updatedAt", channel.getUpdatedAt());
         result.put("isChannelAdmin", channelService.isChannelAdmin(id, userId));
         result.put("isMember", channelService.isChannelMember(id, userId));
+        // 音源开关（公开无敏感信息；歌单页导入弹窗等无 WS 连接的页面靠它联动）
+        Map<String, Boolean> sources = new HashMap<>();
+        for (String platform : List.of("netease", "qq", "kugou", "bilibili")) {
+            String v = channelService.getChannelConfig(id, "source_" + platform + "_enabled");
+            sources.put(platform, v == null || Boolean.parseBoolean(v));
+        }
+        result.put("sources", sources);
         return ResponseEntity.ok(result);
     }
 

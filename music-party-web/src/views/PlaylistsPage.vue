@@ -138,7 +138,7 @@
               <button @click="showCoverModal = true" title="设置封面" class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
                 <ImageIcon class="w-3.5 h-3.5" /> 封面
               </button>
-              <button @click="showImportModal = true" title="从网易云/QQ/酷狗歌单链接导入"
+              <button @click="openImportModal" title="从网易云/QQ/酷狗歌单链接导入"
                       class="px-3 py-2 border border-medical-200 text-medical-600 text-xs font-bold hover:bg-medical-100 transition-colors flex items-center gap-1.5 rounded-sm font-sans">
                 <Download class="w-3.5 h-3.5" /> 导入
               </button>
@@ -357,6 +357,7 @@ import { ArrowUp, ArrowDown, Upload, Download } from 'lucide-vue-next';
 import { usePlayerStore } from '../stores/player';
 import { useToast } from '../composables/useToast';
 import { formatDuration } from '../utils/format';
+import { parsePlaylistId, fetchAllSongs } from '../utils/playlistImport';
 import CoverImage from '../components/CoverImage.vue';
 import PlaylistCoverModal from '../components/PlaylistCoverModal.vue';
 import ToastNotification from '../components/ToastNotification.vue';
@@ -379,49 +380,44 @@ const importPlatform = ref('netease');
 const importLink = ref('');
 const importing = ref(false);
 
+// 频道音源检查：tab 全部显示，但当前频道未开启该音源时点击导入给出明确提示。
+// 歌单页没有 WS 连接（收不到 PlayerState 广播），打开弹窗时主动拉频道详情（含 sources）取最新状态
+const channelSources = ref(null);
+const loadChannelSources = async () => {
+  const chId = playerStore.channelId || Number(localStorage.getItem('mp_channel_id')) || null;
+  if (!chId) { channelSources.value = null; return; }
+  try {
+    const d = await client.get(`/api/channels/${chId}`);
+    channelSources.value = d?.sources || null;
+  } catch (e) {
+    channelSources.value = null;
+  }
+};
+const openImportModal = () => {
+  showImportModal.value = true;
+  loadChannelSources();
+};
+const importPlatformEnabled = (p) => {
+  // 频道详情 sources 优先（最新）；回退广播 config；再回退全局开关
+  if (channelSources.value && channelSources.value[p] !== undefined) return channelSources.value[p] !== false;
+  const src = playerStore.config?.[`${p}SourceEnabled`];
+  if (src !== undefined) return src !== false;
+  const global = playerStore.config?.[`${p}Enabled`];
+  return global !== false;
+};
+
 const importPlaceholder = computed(() => ({
   netease: '网易云歌单链接或 ID，如 https://y.music.163.com/m/playlist?id=10102603929',
   qq: 'QQ 歌单链接或 ID（仅支持数字 ID）',
   kugou: '酷狗歌单链接或 ID，如 https://www.kugou.com/yy/special/single/xxx.html',
 }[importPlatform.value]));
 
-// 链接/ID 解析（支持完整链接与裸 ID；QQ 字母 mid 不支持）
-const parsePlaylistId = (text, platform) => {
-  const t = (text || '').trim();
-  if (platform === 'netease') {
-    const m = t.match(/(?:playlist\?id=|playlist\/)(\d+)/);
-    return m ? m[1] : (/^\d+$/.test(t) ? t : null);
-  }
-  if (platform === 'qq') {
-    const m = t.match(/playlist\/([A-Za-z0-9]+)/);
-    if (m) return /^\d+$/.test(m[1]) ? m[1] : null;
-    return /^\d+$/.test(t) ? t : null;
-  }
-  if (platform === 'kugou') {
-    const m = t.match(/special\/single\/(\d+)/);
-    return m ? m[1] : (/^\d+$/.test(t) ? t : null);
-  }
-  return null;
-};
-
-// 循环分页拉全歌单歌曲（网易云 1000/页，QQ 50/页，酷狗 100/页上限）
-const fetchAllSongs = async (platform, id) => {
-  const songs = [];
-  const pageSize = platform === 'netease' ? 1000 : platform === 'qq' ? 50 : 100;
-  let offset = 0;
-  while (true) {
-    const batch = await client.get(`/api/playlist/songs/${platform}/${id}?offset=${offset}&limit=${pageSize}`);
-    if (!Array.isArray(batch) || batch.length === 0) break;
-    songs.push(...batch);
-    if (batch.length < pageSize) break;
-    offset += pageSize;
-    if (songs.length >= 5000) break; // 安全上限
-  }
-  return songs;
-};
-
 const doImport = async () => {
   if (!selected.value) return;
+  if (!importPlatformEnabled(importPlatform.value)) {
+    error(`当前频道未开启该音源（${importPlatform.value}），无法导入`);
+    return;
+  }
   const id = parsePlaylistId(importLink.value, importPlatform.value);
   if (!id) { error('无法识别歌单链接，请检查后重试'); return; }
   importing.value = true;
@@ -586,7 +582,7 @@ const enqueueAll = () => {
 // 自定义排序：歌单列表上移/下移（按当前过滤视图顺序重排，未过滤的保持相对顺序）
 const movePlaylist = async (idx, dir) => {
   if (idx < 0) return;
-  const view = [...filteredPlaylists];
+  const view = [...filteredPlaylists.value];
   const j = idx + dir;
   if (j < 0 || j >= view.length) return;
   [view[idx], view[j]] = [view[j], view[idx]];

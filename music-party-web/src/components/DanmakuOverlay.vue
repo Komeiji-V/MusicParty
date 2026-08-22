@@ -63,7 +63,16 @@ const pushDanmaku = (msg) => {
   el.style.top = y + 'px';
   const titleSpan = document.createElement('span');
   titleSpan.className = 'dk-title';
-  titleSpan.style.color = user?.titleColor || '#ff5722'; // 称号外观：直接用称号定义的颜色
+  if (title) {
+    const tc = user?.titleColor || '#ff5722';
+    titleSpan.style.backgroundColor = tc;
+    // 对比文字色：按亮度选黑/白
+    const hex = tc.replace('#', '');
+    const r = parseInt(hex.slice(0, 2), 16) || 0;
+    const g = parseInt(hex.slice(2, 4), 16) || 0;
+    const b = parseInt(hex.slice(4, 6), 16) || 0;
+    titleSpan.style.color = (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#111827' : '#ffffff';
+  }
   titleSpan.textContent = title ? title + ' ' : '';
   const textNode = document.createElement('span');
   textNode.textContent = `${name} 说：${text}`;
@@ -99,15 +108,11 @@ onBeforeUnmount(() => {
 .dk-item {
   position: absolute;
   left: 100%;
-  padding: 2px 8px;
-  border-radius: 3px;
-  color: #fff;
+  padding: 1px 0;
+  color: #111827; /* 无背景：弹幕文字黑色 */
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  background: rgba(17, 24, 39, 0.25);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   animation-name: danmaku-fly;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
@@ -116,8 +121,17 @@ onBeforeUnmount(() => {
 .dk-noanim {
   animation: none !important;
 }
+/* 称号徽章：挪用在线成员列表的称号外观，自适应弹幕字号 */
 .dk-title {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-size: 11px;
   font-weight: 800;
+  line-height: 1.5;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 @keyframes danmaku-fly {
   from { transform: translateX(0); }

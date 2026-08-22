@@ -423,6 +423,7 @@ const doImport = async () => {
     success(`导入成功 ${added} 首（跳过重复 ${songs.length - added} 首）`);
     showImportModal.value = false;
     importLink.value = '';
+    await playlistStore.fetchItems(selected.value.id); // 导入后自动刷新歌单
   } catch (e) {
     error(e?.response?.data?.message || e.message || '导入失败');
   } finally {

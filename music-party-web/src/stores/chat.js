@@ -9,6 +9,14 @@ export const useChatStore = defineStore('chat', () => {
     const messages = ref([]);
     const unreadCount = ref(0);
     const isOpen = ref(false);
+    // 弹幕开关（localStorage 持久化，默认开）
+    const danmakuEnabled = ref(localStorage.getItem('mp_danmaku_enabled') !== 'false');
+    // 最新一条实时聊天消息（弹幕组件 watch 它触发弹幕；历史消息不触发）
+    const lastLiveMessage = ref(null);
+    const toggleDanmaku = () => {
+        danmakuEnabled.value = !danmakuEnabled.value;
+        localStorage.setItem('mp_danmaku_enabled', danmakuEnabled.value.toString());
+    };
 
     // 分页相关状态
     const hasMore = ref(true);
@@ -20,6 +28,9 @@ export const useChatStore = defineStore('chat', () => {
     // 1. 添加单条消息 (来自 WebSocket 推送)
     const addMessage = (msg) => {
         messages.value.push(msg);
+        if (msg && msg.type === 'CHAT') {
+            lastLiveMessage.value = msg; // 弹幕触发
+        }
 
         if (messages.value.length > 2000) {
             messages.value = messages.value.slice(-1000);
@@ -83,7 +94,7 @@ export const useChatStore = defineStore('chat', () => {
         hasMore,
         isLoadingMore,
         addMessage,
-        toggleChat,
+        toggleChat, toggleDanmaku, danmakuEnabled, lastLiveMessage,
         setHistory,
         loadMoreHistory,
         prependHistory

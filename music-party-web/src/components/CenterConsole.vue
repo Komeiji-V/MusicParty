@@ -86,6 +86,9 @@
       </div>
     </div>
 
+    <!-- 弹幕层：主区域上方 1/3，实时聊天消息从右向左飞过 -->
+    <DanmakuOverlay />
+
     <!-- LAYER 3: 核心实体层 (封面)；左移由根 flex 控制 -->
     <div
         class="z-30 flex items-center justify-center pointer-events-auto flex-shrink-0"
@@ -265,6 +268,7 @@ import { usePlayerStore } from '../stores/player';
 import { useUserStore } from '../stores/user';
 import { useChannelStore } from '../stores/channel';
 import { useToast } from '../composables/useToast';
+import DanmakuOverlay from './DanmakuOverlay.vue';
 import {useEventListener, useWindowSize} from '@vueuse/core';
 import { parseLyrics, parseLyricsFull } from '../utils/parser';
 import { AudioVisualizer } from '../logic/AudioVisualizer';

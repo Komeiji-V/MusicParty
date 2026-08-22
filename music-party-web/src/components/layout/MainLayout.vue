@@ -1,7 +1,7 @@
 <!-- src/components/layout/MainLayout.vue -->
 <script setup>
 import { ref, onMounted } from 'vue';
-import { Search, Users, ListMusic, X, Minimize2, Maximize2, Volume2, Activity, UserRound, MoreHorizontal } from 'lucide-vue-next';
+import { Search, Users, ListMusic, X, Minimize2, Maximize2, Volume2, Activity, UserRound, MoreHorizontal , Captions } from 'lucide-vue-next';
 import UserList from '../UserList.vue';
 import QueueList from '../QueueList.vue';
 import CoverImage from '../CoverImage.vue';
@@ -10,11 +10,13 @@ import ProfileModal from '../ProfileModal.vue';
 import ChannelAdminModal from '../ChannelAdminModal.vue';
 import { useUserStore } from '../../stores/user';
 import { useUiStore } from '../../stores/ui';
+import { useChatStore } from '../../stores/chat';
 import { usePlayerStore } from '../../stores/player';
 
 const emit = defineEmits(['search', 'playlists']);
 const userStore = useUserStore();
 const uiStore = useUiStore();
+const chatStore = useChatStore();
 const playerStore = usePlayerStore();
 
 // 个人空间弹窗（不离开频道，音乐不中断）
@@ -133,6 +135,9 @@ const handleSearchClick = () => {
             </button>
             <button @click="moreLite" class="w-full flex items-center gap-2.5 px-3 py-3 text-xs font-bold text-medical-800 hover:bg-medical-50 text-left transition-colors border-t border-medical-100">
               <Minimize2 class="w-4 h-4 text-medical-500 flex-shrink-0" /> 精简模式
+            </button>
+            <button @click="chatStore.toggleDanmaku(); mobileMoreOpen = false" class="w-full flex items-center gap-2.5 px-3 py-3 text-xs font-bold text-medical-800 hover:bg-medical-50 text-left transition-colors border-t border-medical-100">
+              <Captions class="w-4 h-4 text-medical-500 flex-shrink-0" /> {{ chatStore.danmakuEnabled ? '关闭弹幕' : '开启弹幕' }}
             </button>
           </div>
         </div>

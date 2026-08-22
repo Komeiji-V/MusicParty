@@ -79,23 +79,6 @@ public class UserPlaylistService {
         }
     }
 
-    /** 自定义歌单内歌曲排序：按传入 itemId 顺序重写 position */
-    @Transactional
-    public void reorderItems(Long userId, Long playlistId, List<Long> orderedIds) {
-        getOwned(userId, playlistId);
-        if (orderedIds == null || orderedIds.isEmpty()) return;
-        List<PlaylistItem> items = itemRepository.findByPlaylistIdOrderByPosition(playlistId);
-        java.util.Map<Long, PlaylistItem> byId = items.stream()
-                .collect(java.util.stream.Collectors.toMap(PlaylistItem::getId, it -> it));
-        for (int i = 0; i < orderedIds.size(); i++) {
-            PlaylistItem it = byId.get(orderedIds.get(i));
-            if (it != null && it.getPosition() != i) {
-                it.setPosition(i);
-                itemRepository.save(it);
-            }
-        }
-    }
-
     public List<String> categories(Long userId) {
         return playlistRepository.findDistinctCategoriesByUserId(userId);
     }

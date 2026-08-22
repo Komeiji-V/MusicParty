@@ -93,14 +93,6 @@ public class PlaylistController {
         return ResponseEntity.ok(Map.of("message", "歌曲已移除"));
     }
 
-    /** 歌单内歌曲自定义排序：body = 有序 itemId 数组 */
-    @PutMapping("/{id}/items/order")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> reorderItems(@PathVariable Long id, @RequestBody List<Long> orderedIds) {
-        playlistService.reorderItems(SecurityConfig.getCurrentUserId(), id, orderedIds);
-        return ResponseEntity.ok(Map.of("message", "排序已保存"));
-    }
-
     /** 歌单列表自定义排序：body = 有序 playlistId 数组 */
     @PutMapping("/order")
     @PreAuthorize("isAuthenticated()")
